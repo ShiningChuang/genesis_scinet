@@ -1,0 +1,16 @@
+#!/bin/sh
+# 版本化 git hook(经 core.hooksPath 激活,见 env/setup.sh)。
+# 提交前:把暂存的 .md 里 IDE 带出来的 vscode-webview://<host>/ 链接重写成相对路径。
+# 设计成"尽力而为":任何异常都不阻断提交(链接美化非正确性门槛)。
+
+md=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' 2>/dev/null)
+[ -z "$md" ] && exit 0
+
+changed=$(printf '%s\n' "$md" | xargs python3 scripts/fix_webview_links.py 2>/dev/null) || exit 0
+
+if [ -n "$changed" ]; then
+  printf '%s\n' "$changed" | xargs git add 2>/dev/null
+  echo "pre-commit: rewrote vscode-webview links ->"
+  printf '  %s\n' "$changed"
+fi
+exit 0

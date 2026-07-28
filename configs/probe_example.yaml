@@ -1,0 +1,13 @@
+# 框架自检用的示例 config(起项目后连同 src/experiments/probe_example/ 一并删除)。
+# 每个实验 config 的必填四件套:tag / description / hypothesis / entry。
+
+tag: probe_example                                  # {kind}_{prefix}_{variant},见 CLAUDE.md §5
+description: 框架自检:用纯 python 随机采样跑通「入口 → 落盘 → 登记 → commit」全链路。
+hypothesis: 若入口的 seed 设置与 config 传参生效,重复采样的样本均值应稳定落在 0 附近(max|mean| < tolerance)。
+entry: src.experiments.probe_example.run:entry      # 必须位于 src/experiments/{tag}/ 下
+
+# A 类参数(影响结果的被测对象)
+n_samples: 10000
+tolerance: 0.1
+
+# B 类参数(测量方法)来自 configs/defaults.yaml,此处刻意不覆盖 —— 覆盖会让实验间不可比。

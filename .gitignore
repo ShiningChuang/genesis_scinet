@@ -1,0 +1,57 @@
+# runs/ 大文件(原始数据,不进 git;靠 env/ 配方 + config 重建)
+# 起项目时按本项目产出的大件类型增删扩展名。
+runs/**/*.log
+runs/**/*.csv
+runs/**/*.jsonl
+runs/**/*.npy
+runs/**/*.npz
+runs/**/*.parquet
+runs/**/*.sqlite
+runs/**/*.zip
+runs/**/*.pkl
+runs/**/*.pt
+# profiling 原始数据示例(用得到再放开):
+# runs/**/*.qdrep
+# runs/**/*.nsys-rep
+
+# 复现关键小文件:显式保留
+!runs/**/description.txt
+!runs/**/metrics.json
+!runs/**/config.yaml
+!runs/**/env_snapshot.txt
+
+# python 缓存
+__pycache__/
+*.pyc
+
+# 虚拟环境目录(注意:env/ 是重建配方目录,要进 git,不要忽略;venv 请放 .venv/)
+.venv/
+venv/
+
+# 系统文件
+.DS_Store
+
+# resources/ — 人工维护的外部资料(论文、外部文档、笔记)。
+# 规则:**小文本进 git**(md/txt/bib,随仓库迁移,agent 也能直接读);
+#       **大件不进 git**(pdf 等,留本地;换机器按 resources/README.md 记的来源重新下载)。
+resources/**/*.pdf
+resources/**/*.epub
+resources/**/*.djvu
+resources/**/*.ppt
+resources/**/*.pptx
+resources/**/*.doc
+resources/**/*.docx
+resources/**/*.xls
+resources/**/*.xlsx
+resources/**/*.zip
+resources/**/*.7z
+resources/**/*.tar.gz
+resources/**/*.mp4
+resources/**/*.mov
+# 图片默认进 git(md 笔记常内嵌引用);若要放扫描件/大图,按需在此追加规则。
+
+# 第三方源码 / 大数据(不进 git),但保留空目录结构
+external/*
+!external/.gitkeep
+data/*
+!data/.gitkeep

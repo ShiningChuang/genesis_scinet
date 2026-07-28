@@ -1,0 +1,33 @@
+# 分层配置的默认值。具体实验 config 会深度合并覆盖本文件。
+# 每个 run 保存的是"合并后的完整配置",不依赖本文件后续改动。
+#
+# 实验变量分两类:
+#   A 类 = 影响实验结果(被测对象):数据集、模型、样本量、seed 等,逐实验可变。
+#   B 类 = 只影响测量方法(不改变被测对象):warmup、重复次数、超时等,全局统一固定。
+
+# ── 测量方法区(B 类)──────────────────────────────
+# 这些定义"如何测量",应全局统一,一般不应被单个实验覆盖。
+# 若某个实验改了这里,实验之间将不可比。
+warmup_iters: 3      # 正式计时前的预热轮数
+repeat_iters: 10     # 正式计时的重复轮数
+# 起项目时按本项目的测量口径增删(例:cuda_sync / timeout_s / n_bootstrap …)。
+
+# ── 实验条件默认区(A 类的默认值)──────────────────
+# 这些是被测对象的默认取值,可被具体实验 config 覆盖。
+seed: 42
+# 起项目时把本项目反复出现的被测对象默认值写在这里,例:
+# dataset:
+#   name: null         # 必须由具体实验指定
+#   path: null
+# batch_size: 32
+
+# ── 环境快照(每个 run 自动采,进 git,用于事后 diff)──
+# 起项目时按本项目实际工具链增删:命令记录 stdout,libraries 记录 __version__。
+env_snapshot:
+  commands:
+    - "git rev-parse HEAD"
+    - "python3 -VV"
+    # - "nvidia-smi --query-gpu=name,driver_version --format=csv,noheader"
+    # - "nvcc --version"
+  libraries: []        # 例:["numpy", "torch", "scipy"]
+  pip_freeze: true     # 附 pip freeze 全量快照(建议保持 true)

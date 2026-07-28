@@ -1,0 +1,12 @@
+# conda 路线模板(本项目若走 venv 路线则此文件未用,见 env/README.md)。
+# 用法:conda env create -f env/conda/environment.yml && conda activate <name>
+name: <PROJECT_NAME>
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pyyaml
+  # 系统级 / 二进制依赖写在这里(编译器、CUDA、MKL …),纯 python 包可留给 pip:
+  - pip
+  - pip:
+      - -r ../pip/requirements.txt
