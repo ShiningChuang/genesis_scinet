@@ -45,6 +45,9 @@
 │   ├── README.md              #   纪律 + 大件出处清单                                            [git]
 │   ├── *.md / *.txt / *.bib   #   小文本                                                         [git]
 │   └── *.pdf / office / 压缩包 #   大件                                              [本地,不进 git]
+├── weekly_report/             # 组会周报(人机协作:AI 起草、我定稿)
+│   ├── _report_template.md    #   周报模板(用法/协作方式见其抬头)                              [git]
+│   └── {YYYYMMDD}.md          #   一次组会一份,文件名 = 组会日期                                [git]
 ├── external/                  # 第三方源码                                          [本地,不进 git]
 ├── data/                      # 大数据集                                            [本地,不进 git]
 └── runs/                      # 所有 run 的产出(每个 run 一个目录,平铺)
@@ -130,6 +133,9 @@ claude   # 启动 agent,它会先读 CLAUDE.md 恢复项目上下文
 - **`docs/current_experiment_plan.md`** —— 当前实验的计划稿,**单份滚动**:它存在即表示当前实验进行中。**末尾 `## 实验历史`** 记历次实验简介,换实验时由 AI **carry-forward** 到新 plan(live plan 末尾永远是截至当前的最全历史,归档副本是各时间点快照)。换实验时把计划稿移入 `docs/archive/`,命名 `{YYYYMMDD}_{tag}.md`,再从 `docs/_plan_template.md`(`cp` 覆写)为新实验起稿。
 - **`docs/current_log.md`** —— 当前实验**运行流水账**(**append-only**)。**由我(人)手写维护,agent 不写入、不修改其内容**(agent 只在换实验起稿时创建空文件、换实验时归档)。我把每次跑完想留的记录手写进来,慢慢读、据此再**手动**把该留的 distill 进 `findings.md` / `knowledge.md`——它是 raw run 与 distill 之间的缓冲。换实验时连同 plan 一起归档(`{YYYYMMDD}_{tag}_log.md`)后清空。
 
-上面几层都是**本项目产出的记忆**;外部输入的原材料(论文、外部文档、摘来的笔记)另放 `resources/`,由我人工维护、agent 只读不写(纪律与大件出处清单见 `resources/README.md`)。
+上面几层都是**本项目产出的记忆**,另有两个方向的补充:
+
+- **`resources/`** —— 外部输入的原材料(论文、外部文档、摘来的笔记),由我人工维护、agent 只读不写(纪律与大件出处清单见 `resources/README.md`)。
+- **`weekly_report/`** —— 对外汇报的快照,一次组会一份 `{YYYYMMDD}.md`。**人机协作**:AI 依据 `EXPERIMENTS.md` / `runs/` / `findings.md` 起草客观结果(每条带证据链接),我补判断与下周打算后定稿。它是记忆的**出口**而非记忆本身——结论仍以 `docs/findings.md` 为准,周报只引用不复制。模板见 `weekly_report/_report_template.md`。
 
 **新接手阅读顺序**(完整版见 `CLAUDE.md`):先读 `CLAUDE.md` → 再读 `docs/current_experiment_plan.md`(末尾「实验历史」看脉络、顶部看当前实验)→ 再读 `docs/findings.md` → 再扫 `EXPERIMENTS.md` 最近若干行。

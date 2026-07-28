@@ -35,6 +35,7 @@
 - `runs/` — 本地原始数据,**大件不进 git**(仅 `description.txt` / `config.yaml` / `metrics.json` / `env_snapshot.txt` 小文件入库)。
 - `env/` — 外部依赖重建配方;凡 env 中出现 git 之外、复现要依赖的 artifact(包、源码、模型/数据、系统工具,含工具自动拉取的)即同步登记,细则见 `env/README.md`。
 - `resources/` — **外部资料**(论文 PDF、外部文档、摘来的笔记 md),与 `docs/`(本项目产出的记忆)相对,是外部输入的原材料。**纯人工维护,agent 只读不写**:可读取并引用其内容,但不主动写入/重命名/整理/删除,需要往里放东西时提议由我来放。小文本(md/txt/bib)进 git 随仓库迁移;大件(pdf 等)不进 git,须在 `resources/README.md` 的清单里登记出处,细则见该文件。
+- `weekly_report/` — **组会周报**,一次组会一个 md,文件名 `{YYYYMMDD}.md`(组会当天日期,排序即时间顺序);模板 `_report_template.md`。**人机协作**(区别于 `docs/current_log.md` 的人工独占):**AI 起草**——依据 `EXPERIMENTS.md` / `runs/*/metrics.json` / `docs/findings.md` 汇总本周客观结果,每条结论带证据链接,口径沿用 §7(观察与解释分开、推测须标注、负结果照实写);**我定稿**——补判断、提问与下周打算。周报是汇报快照而非记忆本身,结论最终沉淀进 `docs/findings.md`,周报只引用不复制。
 
 ## 4. 新接手阅读顺序
 
