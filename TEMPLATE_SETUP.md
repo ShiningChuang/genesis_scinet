@@ -59,7 +59,9 @@ cp -r research_template <你的项目名> && cd <你的项目名>
 | 失败也登记 + push | 负结果不被静默丢弃 | 入口的 `finally` 块 |
 | detached HEAD 跳过 commit | 复现旧实验不污染 git 历史 | `git_commit_and_push` |
 | 计划稿覆写式 + 同步铁律 | 任何时刻能回答"在做什么、下一步是什么" | `CLAUDE.md` §8 |
-| knowledge/current_log 人工独占 | agent 不能污染人的思考缓冲区 | `CLAUDE.md` §3 |
+| knowledge/ideas/current_log 人工独占 | agent 不能污染人的思考缓冲区 | `CLAUDE.md` §3 |
+| findings / knowledge 按日期分卷 | 单文件不会无限膨胀,旧卷原地即归档 | `docs/{findings,knowledge}_{YYYYMMDD}.md` |
+| 两类分卷各有三级标题索引 | 跨卷定位不依赖逐文件搜索 | `docs/_index_{findings,knowledge}.md` |
 
 ## 日常节奏(照抄原项目的用法)
 
@@ -67,6 +69,6 @@ cp -r research_template <你的项目名> && cd <你的项目名>
 2. agent 先把这个实验补进 `docs/current_experiment_plan.md` 的「步骤与进度」,再建 config、写 `src/experiments/{tag}/run.py`。
 3. `python scripts/run_experiment.py configs/xxx.yaml` → 自动落盘、登记、commit+push。
 4. agent 只汇报三点:客观结果 / 对照假设 / 一个建议的下一步,然后**停下**。
-5. 你把想留的记录手写进 `docs/current_log.md`(agent 不碰),隔一阵手动 distill 进 `docs/findings.md`(结论)或 `docs/knowledge.md`(通用知识)。
+5. 你把想留的记录手写进 `docs/current_log.md`(agent 不碰),隔一阵手动 distill 进最新一卷 `docs/findings_{YYYYMMDD}.md`(结论)或 `docs/knowledge_{YYYYMMDD}.md`(通用知识;agent 不碰);两类新卷都由你决定何时创建。
 6. 关键结论标 ✅ 之前,至少重复跑一次确认。
 7. 换实验时:current plan / current_log 归档进 `docs/archive/{YYYYMMDD}_{tag}.md` 与 `_log.md`,从 `docs/_plan_template.md` 起新稿并 carry-forward「实验历史」。

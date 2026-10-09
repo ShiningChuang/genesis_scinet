@@ -33,6 +33,7 @@ echo "==> [4/4] external/ 第三方源码(按项目补,commit 必须钉死;见 e
 # [ -d "$DEP_DIR/.git" ] || git clone "$DEP_URL" "$DEP_DIR"
 # git -C "$DEP_DIR" checkout "$DEP_COMMIT"
 # "$VENV/bin/pip" install -e "$DEP_DIR"
+git submodule update --init external/SciNetGenesis  # SciNet 共享仓库(submodule,commit 由 gitlink 钉死)
 
 echo "==> 验证"
 "$VENV/bin/python" -c "import sys, yaml; print('python', sys.version.split()[0], '| pyyaml', yaml.__version__)"

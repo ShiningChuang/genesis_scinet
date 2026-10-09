@@ -1,0 +1,2010 @@
+openapi: 3.0.2
+info:
+  version: 2.0.4
+  title: SENSE-O Northbound Intent API
+  description: StackV SENSE-O Northbound REST API Documentation
+
+servers:
+  - url: "https://dev1.virnao.com:8443/StackV-web/restapi"
+
+security:
+  - oAuth2Keycloak: []
+
+tags:
+  - name: workflow_combined
+    description: |-
+      methods for single-phase workflows (minimal privisioning steps)
+      `/instance//{siUUID}/{action}` uses `provision`, `cancel` and `repvovision` calls.                                                                                                                            
+  - name: workflow_phased
+    description: |-
+      methods for two-phase commit workflows (useful for co-scheduling)
+      `/instance//{siUUID}/{action}` uses `propagate`, `release`,  `reinstate` and `commit` calls.
+  - name: service
+    description: service workflow methods
+  - name: instance
+    description: Service instance methods
+  - name: profile
+    description: Service profile methods
+  - name: intent
+    description: Service intent methods
+  - name: discover
+    description: "API endpoints, service type, capabilities and topology discovery methods"
+  - name: monitor
+    description: Service monitoring related methods
+  - name: notify
+    description: Handling notification for callback events
+  - name: logging
+    description: Logging related methods
+paths:
+  "/profile":
+    post:
+      tags:
+        - profile
+      summary: Create a profile
+      description: "Builds and saves a new profile, using provided starting data."
+      requestBody:
+        description: Profile creation manifest.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileManifest"
+      responses:
+        "200":
+          description: UUID generated for new profile.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 979ae8e2-9378-493d-a9bd-05c69f078828
+        "500":
+          description: Internal server fault or standardized error response.
+    get:
+      tags:
+        - profile
+        - workflow_combined
+        - workflow_phased
+      summary: Get skimmed profile data
+      description: >-
+        Retrieves the list of profiles the user is permitted to use without any
+        JSON data.
+      responses:
+        "200":
+          description: Array of profiles with slim data.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SlimProfile"
+        "500":
+          description: Internal server fault or standardized error response.
+  "/profile/{uuid}":
+    get:
+      tags:
+        - profile
+        - workflow_combined
+        - workflow_phased
+      summary: Get single profile
+      description: Retrieves the specified profile.
+      parameters:
+        - in: path
+          name: uuid
+          schema:
+            type: string
+          required: true
+          description: Profile UUID.
+      responses:
+        "200":
+          description: Requested profile object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullProfile"
+        "403":
+          description: Access not granted for specified profile.
+        "500":
+          description: Internal server fault or standardized error response.
+    delete:
+      tags:
+        - profile
+      summary: Delete profile
+      description: Deletes the specified profile.
+      parameters:
+        - in: path
+          name: uuid
+          schema:
+            type: string
+          required: true
+          description: Profile UUID.
+      responses:
+        "204":
+          description: No content response.
+        "403":
+          description: Access not granted for specified profile.
+        "500":
+          description: Internal server fault or standardized error response.
+    put:
+      tags:
+        - profile
+      summary: Edit a profile
+      description: Submits an updated version of a profile for saving.
+      parameters:
+        - in: path
+          name: uuid
+          schema:
+            type: string
+          required: true
+          description: Profile UUID.
+      requestBody:
+        description: Profile creation manifest.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileManifest"
+      responses:
+        "204":
+          description: No content response.
+        "403":
+          description: Access not granted for specified profile.
+        "500":
+          description: Internal server fault or standardized error response.
+  "/profile/{uuid}/licenses":
+    post:
+      tags:
+        - profile
+      summary: Add new license
+      description: >-
+        Assigns a new license to a user, giving them access to execute the
+        specified profile (and potentially edit as well).
+      parameters:
+        - in: path
+          name: uuid
+          schema:
+            type: string
+          required: true
+          description: Profile UUID.
+      requestBody:
+        description: License object.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileLicense"
+      responses:
+        "204":
+          description: No content response.
+        "403":
+          description: Access not granted for specified profile.
+        "500":
+          description: Internal server fault or standardized error response.
+    put:
+      tags:
+        - profile
+      summary: Edit existing license
+      description: >-
+        Edits an existing license to a user. Setting the remaining field to 0
+        will delete the license.
+      parameters:
+        - in: path
+          name: uuid
+          schema:
+            type: string
+          required: true
+          description: Profile UUID.
+      requestBody:
+        description: License object.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileLicense"
+      responses:
+        "204":
+          description: No content response.
+        "500":
+          description: Internal server fault or standardized error response.
+  "/profile/{uuid}/uses/{username}":
+    get:
+      tags:
+        - profile
+      summary: Get license usage
+      description: Retrieves the remaining number of tickets or slots for allocations.
+      parameters:
+        - in: path
+          name: uuid
+          schema:
+            type: string
+          required: true
+          description: Profile UUID.
+        - in: path
+          name: username
+          schema:
+            type: string
+          required: true
+          description: Username of licensed user.
+      responses:
+        "200":
+          description: Response with number of remaining licenses.
+          content:
+            application/json:
+              schema:
+                type: number
+                example: 5
+        "403":
+          description: Access not granted for specified profile.
+        "500":
+          description: Internal server fault or standardized error response.
+  "/instance":
+    get:
+      tags:
+        - instance
+        - workflow_combined
+        - workflow_phased
+      summary: Generate new service instance UUID
+      description: |
+        Retrieves UUID for new instance from backend.
+      responses:
+        "200":
+          description: Generated UUID.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 3b7d41e1-b37f-4c64-84d2-d307b5e47370
+        "500":
+          $ref: "#/components/responses/Error"
+  "/instance/{siUUID}":
+    post:
+      tags:
+        - instance
+        - workflow_combined
+        - workflow_phased
+      summary: Create new service instance and/or add new intent
+      description: |
+        Creates a new service instance with the given UUID and intent specification or add new intent to existing service instance 
+      parameters:
+        - in: path
+          name: siUUID
+          schema:
+            type: string
+          required: true
+          description: Service instance UUID.
+        - in: query
+          name: sync
+          description: Whether to perform the creation in a synchronous/blocking mode.
+          schema:
+            type: boolean
+            default: true
+        - in: query
+          name: proceed
+          description: Whether to automatically proceed through the creation phases.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        description: Service instance creation request object.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceIntent"
+      responses:
+        "200":
+          description: Service instance UUID, in case it was generated during workflow.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceIntentResponse"
+        "400": 
+          description: Intent was malformed, or failed validation.
+        "403":
+          description: Access not granted for specified profile.
+        "500":
+          $ref: "#/components/responses/Error"
+    delete:
+      tags:
+        - instance
+        - workflow_combined
+        - workflow_phased
+      summary: Delete a service instance
+      description: |
+        Deletes the specified service instance.
+      parameters:
+        - in: path
+          name: siUUID
+          description: service instance UUID
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No content response.
+        "403":
+          description: Access not granted for specified instance.
+        "500":
+          $ref: "#/components/responses/Error"
+  "/instance/{siUUID}/status":
+    get:
+      tags:
+        - instance
+        - workflow_combined
+        - workflow_phased
+      summary: Get instance status
+      description: |
+        Retrieves the full instance status.
+      parameters:
+        - in: path
+          name: siUUID
+          schema:
+            type: string
+          required: true
+          description: Service instance UUID.
+          example: ae4d45d0-4420-42d6-8641-0a1012d47c99
+      responses:
+        "200":
+          description: Concatenated instance superstate and substate.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: Create - FAILED
+        "403":
+          description: Access not granted for specified instance.
+        "500":
+          $ref: "#/components/responses/Error"
+  "/instance/{siUUID}/substatus":
+    get:
+      tags:
+        - instance
+      summary: Get instance substatus
+      description: |
+        Retrieves only the backend service status.
+      parameters:
+        - in: path
+          name: siUUID
+          schema:
+            type: string
+          required: true
+          description: Service instance UUID.
+          example: ae4d45d0-4420-42d6-8641-0a1012d47c99
+      responses:
+        "200":
+          description: Concatenated instance superstate and substate.
+          content:
+            application/json:
+              schema:
+                type: string
+                example: READY
+        "403":
+          description: Access not granted for specified instance.
+        "500":
+          $ref: "#/components/responses/Error"
+  "/instance/{siUUID}/{action}":
+    put:
+      tags:
+        - instance
+        - workflow_combined
+        - workflow_phased
+      summary: Operate on a service instance
+      description: |
+        Request an operation for specified service instance.
+      parameters:
+        - in: path
+          name: siUUID
+          description: service instance UUID
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: action
+          description: >-
+            Service operation requested
+              * `cancel` - Composite service to deprovisio instance.
+              * `release` - Composite service to deprovisio in 2-phase commit process.
+              * `verify` - Begin service verification process.
+          required: true
+          schema:
+            $ref: "#/components/schemas/Operation"
+        - in: query
+          name: sync
+          description: Whether to perform the operation in a synchronous/blocking mode.
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: force
+          description: Whether to force the operation on a failed instance.
+          schema:
+            type: boolean
+            default: false
+        - in: query
+          name: intent
+          description: Intent UUID string or 'last'.
+          schema:
+            type: string
+            default: 'last'
+      responses:
+        "204":
+          description: No content response.
+        "400":
+          description: Bad request.
+        "403":
+          description: Access not granted for specified instance.
+        "500":
+          $ref: "#/components/responses/Error"
+  "/instance/{siUUID}/modify":
+    post:
+      tags:
+        - instance
+      summary: Modify a service instance
+      description: |
+        Composite service to modify/recompile, propagate, commit and verify (will create a new intent).
+        
+        We do not support 2-phase modify yet.
+                
+        `Roles Required: F_Operations-Modify`
+      parameters:
+        - in: path
+          name: siUUID
+          description: service instance UUID
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: sync
+          description: Whether to perform the modify in a synchronous/blocking mode.
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        description: Service instance creation request object.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceIntent"
+      responses:
+        "204":
+          description: No content response.
+        "400":
+          description: Bad request.
+        "403":
+          description: Access not granted for specified instance.
+        "500":
+          $ref: "#/components/responses/Error"
+  "/instance/{siUUID}/verify":
+    get:
+      tags:
+        - instance
+        - workflow_phased
+      summary: Retrieve verification data
+      description: Requests the data from the last or current verification run.
+      parameters:
+        - in: path
+          name: siUUID
+          schema:
+            type: string
+          required: true
+          description: Service instance UUID.
+          example: ae4d45d0-4420-42d6-8641-0a1012d47c99
+      responses:
+        "200":
+          description: Verification data package.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationResult"
+        "403":
+          description: Access not granted for specified instance.
+        "500":
+          $ref: "#/components/responses/Error"
+  "/instance/{siUUID}/superstate/{state}":
+    put:
+      tags:
+        - instance
+      summary: Change instance superstate
+      description: Updates the superstate of the specified service instance
+      parameters:
+        - in: path
+          name: siUUID
+          schema:
+            type: string
+          required: true
+          description: Service instance UUID.
+          example: ae4d45d0-4420-42d6-8641-0a1012d47c99
+        - in: path
+          name: state
+          schema:
+            type: string
+          required: true
+          description: Service instance UUID.
+          example: CANCEL
+      responses:
+        "204":
+          description: No content response.
+        "500":
+          $ref: "#/components/responses/Error"
+  "/service/manifest/{siUUID}":
+    post:
+      tags:
+        - workflow_combined
+        - workflow_phased
+      summary: Create service instance manifest by template
+      description: Create manifest with input of JSON template and instance UUID.
+      parameters:
+        - in: path
+          name: siUUID
+          schema:
+            type: string
+          required: true
+          description: Service instance UUID.
+      requestBody:
+        description: JSON manifest template.
+        required: true
+        content:
+          application/json: 
+            schema:
+              type: string
+      responses:
+        "200":
+          description: Service instance UUID, in case it was generated during workflow.
+          content:
+            application/json:
+              schema:
+                type: string
+        "400": 
+          description: Intent was malformed, or failed validation.
+        "403":
+          description: Access not granted for specified profile.
+        "500":
+          $ref: "#/components/responses/Error" 
+  "/intent/{uuid}":
+    get:
+      tags:
+        - intent
+      summary: Retrieve intent by UUID
+      description: Queries service intent with given ID.
+      parameters:
+        - in: path
+          name: uuid
+          schema:
+            type: string
+          required: true
+          description: Intent UUID.
+      responses:
+        "200":
+          description: Response with specified intent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Intent"
+        "204":
+            description: Intent query succeeded, but no intent found.
+        "403":
+          description: Access not granted for specified instance.
+        "500":
+          description: Internal server fault or standardized error response.
+  /discover:
+    get:
+      tags:
+        - discover
+      summary: 'Topology domains, edge points and peers information'
+      description: | 
+        List global domain information
+        
+        `Roles Required: F_Discover-R`
+      responses:
+        '200':
+          description: Successful retrieval of topoogy desciptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domains:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DomainDescription'
+        '401':
+          description: Request unauthorized
+        "403":
+          description: RBAC role not granted.
+        '404':
+          description: Resource unfound
+        '500':
+          description: Server internal error
+  /discover/domains:
+    get:
+      tags:
+        - discover
+      summary: Topology domains
+      description: |
+        List all known domains (and capabilities?)
+                
+        `Roles Required: F_Discover-R`
+      responses:
+        '200':
+          description: Successful retrieval of topoogy desciptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domains:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        domain_uri:
+                          type: string
+                          example: urn:ogf:network:maxgigapop.net:2013
+                        domain_name:
+                          type: string
+                          example: n/a
+        '401':
+          description: Request unauthorized
+        "403":
+          description: RBAC role not granted.
+        '404':
+          description: Resource unfound
+        '500':
+          description: Server internal error
+  '/discover/{domainID}':
+    get:
+      tags:
+        - discover
+      summary: Edge points discover and description for a specific domain
+      description: |
+        List all associated edge points (and capabilities)
+                
+        `Roles Required: F_Discover-R`
+      parameters:
+        - name: domainID
+          in: path
+          description: Name of URI of a target domain
+          required: true
+          schema:
+            type: string
+            example: urn:ogf:network:maxgigapop.net:2013
+      responses:
+        '200':
+          description: Successful retrieval of topology desciptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDescription'
+        '401':
+          description: Request unauthorized
+        "403":
+          description: RBAC role not granted.
+        '404':
+          description: Resource unfound
+        '500':
+          description: Server internal error
+  '/discover/{domainID}/peers':
+    get:
+      tags:
+        - discover
+      summary: edge points discover and description of peer domain for a given domain or end-site
+      description: |
+        List peer domain edge points (and capabilities) that connect this domain (by URI or name)
+                
+        `Roles Required: F_Discover-R`
+      parameters:
+        - name: domainID
+          in: path
+          description: Name of URI of a target end-site domain
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful retrieval of topology desciptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDescription'
+        '401':
+          description: Request unauthorized
+        '404':
+          description: Resource unfound
+        '500':
+          description: Server internal error
+  '/discover/{domainID}/ipv6pool':
+    get:
+      tags:
+        - discover
+      summary: edge points discover and description of peer domain for a given domain or end-site
+      description: |
+        List IPv6 subnet and address pools that belong to this domain (by URI or name)
+                
+        `Roles Required: F_Discover-R`
+      parameters:
+        - name: domainID
+          in: path
+          description: Name of URI of a target end-site domain
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful retrieval of topology desciptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDescription'
+        '401':
+          description: Request unauthorized
+        '404':
+          description: Resource unfound
+        '500':
+          description: Server internal error  
+  '/discover/service/instances':
+    get:
+      tags:
+        - discover
+      summary: Service discover and description
+      description: |
+        List service instances
+                
+        `Roles Required: F_Discover-R`
+      parameters:
+        - in: query
+          name: search
+          description: search by name substring or regex
+          schema:
+            type: string
+        - in: query
+          name: regex
+          description: use substring march or regex
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful retrieval of service desciptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  instances:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceDescription'
+        '401':
+          description: Request unauthorized
+        "403":
+          description: RBAC role not granted.
+        '404':
+          description: Resource unfound
+        '500':
+          description: Server internal error
+  '/discover/lookup/{name}':
+    get:
+      tags:
+        - discover
+      summary: Look up for domain / node / port URI by name
+      description: |
+        List of URI string
+                
+        `Roles Required: F_Discover-R`
+      parameters:
+        - name: name
+          in: path
+          description: 'Resource nml:name or mrs:NetworkAddress or ''fqdn'' type'
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: search
+          description: 'search by name, tag or NetworkAddress .'
+          schema:
+            type: string
+            default: name
+        - in: query
+          name: type
+          description: type of tag or NetworkAddress
+          schema:
+            type: string
+            default: any
+        - in: query
+          name: regex
+          description: use full name march or regex
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful retrieval of service desciptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDescription'
+        '401':
+          description: Request unauthorized
+        "403":
+          description: RBAC role not granted.
+        '404':
+          description: Resource unfound
+        '500':
+          description: Server internal error
+  '/discover/lookup/{uri}/rooturi':
+    get:
+      tags:
+        - discover
+      summary: Get URI of root topology this resource belongs to.
+      description: |
+        Look up for the root URI of the belonged domain/topology.
+                
+        `Roles Required: F_Discover-R`
+      parameters:
+        - name: uri
+          in: path
+          description: URI of a target resource
+          required: true
+          schema:
+            type: string
+            example: "urn:ogf:network:maxgigapop.net:2013:node+dtn-123"
+      responses:
+        '200':
+          description: Successful retrieval of topology desciptions
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "urn:ogf:network:maxgigapop.net:2013"
+        '401':
+          description: Request unauthorized
+        "403":
+          description: RBAC role not granted.
+        '404':
+          description: Resource unfound
+        '500':
+          description: Server internal error
+  "/notify/{kind}/{id}":
+    post:
+      tags:
+        - notify
+      summary: Notification hanlding for callback events
+      description: >-
+        When SENSE-O subscribe to events / updates from other components such as
+        SENSE-RM, they callback to this API with an event {id} as parameter.
+      parameters:
+        - in: path
+          name: kind
+          description: notification event type
+          required: true
+          schema:
+            type: string
+            enum:
+              - model
+              - delta
+        - in: path
+          name: id
+          description: notification event ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+        description: notification cotent JSON
+        required: true
+      responses:
+        "200":
+          description: Notified successfully
+        "401":
+          description: Request unauthorized
+        "404":
+          description: Resource unfound
+        "406":
+          description: Request Unacceptable
+        "500":
+          description: Server internal error
+  '/logging/config':
+      get:
+          tags:
+              - logging
+          summary: Get logging configuration
+          description: Retrieves the logging levels for each layer as well as database usage metadata.
+          responses:
+              '200':
+                  description: Logging configuration package.
+                  content:
+                      application/json:
+                          schema:
+                              # $schema: 'http://json-schema.org/draft-07/schema'
+                              # $id: 'http://schemas.stackv.com/logConfig.json'
+                              type: object
+                              title: 'Logging Configuration'
+                              description: 'This schema represents the current system logging configuration.'
+                              required:
+                                  - loggers
+                              properties:
+                                  loggers:
+                                      #   $id: '#/properties/loggers',
+                                      type: object
+                                      description: 'Map of the levels for the currently enabled loggers.'
+                                      properties:
+                                          console:
+                                              # $id: '#/properties/loggers/properties/console',
+                                              type: string
+                                              description: 'Logging of this level or higher will be printed to server console.'
+                                              example: TRACE
+                                          database:
+                                              # $id: '#/properties/loggers/properties/database',
+                                              type: string
+                                              description: 'Logging of this level or higher will be logged to database.'
+                                              example: INFO
+                                  filter:
+                                      #   $id: '#/properties/filter',
+                                      type: string
+                                      description: 'Filter configuration string, for dropping matching messages from logging.'
+                                      example: 'useRaw=false, pattern=foo'
+                                  mainRows:
+                                      #   $id: '#/properties/mainRows',
+                                      type: number
+                                      description: 'Number of rows present in the main logging table.'
+                                      example: 2778
+                                  mainUsage:
+                                      #   $id: '#/properties/mainUsage',
+                                      type: number
+                                      description: 'Bytes usage in the main logging table.'
+                                      example: 1753088
+                                  archivedRows:
+                                      #   $id: '#/properties/archivedRows',
+                                      type: number
+                                      description: 'Number of rows present in the archived logging table.'
+                                      example: 81
+                                  archivedUsage:
+                                      #   $id: '#/properties/archivedUsage',
+                                      type: number
+                                      description: 'Bytes usage in the archived logging table.'
+                                      example: 49152
+              '500':
+                  $ref: '#/components/responses/Error'
+  '/logging/filter':
+      put:
+          tags:
+              - logging
+          summary: Set logger filter
+          description: Updates the logging filter.
+          requestBody:
+              description: If logs contain this string, prevent them from being logged.
+              content:
+                  application/json:
+                      schema:
+                          type: string
+                          example: foo
+          responses:
+              '204':
+                  description: No content response.
+              '500':
+                  $ref: '#/components/responses/Error'
+  '/logging/config/{logger}/{level}':
+      put:
+          tags:
+              - logging
+          summary: Set logger level
+          description: Updates the logging level of the specified layer.
+          parameters:
+              - in: path
+                name: logger
+                schema:
+                    type: string
+                    enum:
+                        - console
+                        - database
+                required: true
+                description: Logging appender layer.
+              - in: path
+                name: level
+                schema:
+                    type: string
+                    enum:
+                        - TRACE
+                        - INFO
+                        - DEBUG
+                        - WARN
+                        - ERROR
+                required: true
+                description: Logging appender level.
+          responses:
+              '204':
+                  description: No content response.
+              '500':
+                  $ref: '#/components/responses/Error'
+  '/logging/logs/{siUUID}':
+      get:
+          tags:
+              - logging
+          summary: Get full log data
+          description: Retrieves rows of logging, according to provided filters and sorting.
+          parameters:
+              - in: path
+                name: siUUID
+                schema:
+                    type: string
+                    example: f4028207-af0d-4bd7-b81c-9db591b82a17
+                required: true
+                description: Specify UUID to retrieve only logs pertaining to specified service instance, or use the string 'null' to retrieve system-wide logging.
+              - in: query
+                name: take
+                description: How many logs to retrieve.
+                schema:
+                    type: number
+                    default: 100
+              - in: query
+                name: skip
+                description: Where to start (pagination). A skip of 100 means start counting rows (specified in take above) from the 101st row.
+                schema:
+                    type: number
+                    default: 0
+              - in: query
+                name: sort
+                description: Sorting configuration. Selectors require exact field names, and can be toggled for descending order.
+                schema:
+                    type: string
+                    example: '[{"selector":"timestamp","desc":true}]'
+              - in: query
+                name: filter
+                description: Filter configuration. Complex filters are joined arrays of simple filters.
+                schema:
+                    type: string
+                    example: '[["timestamp",">=","2021/04/13 11:04:00"],"and",["level","=","INFO"]]'
+          responses:
+              '200':
+                  description: Log data.
+                  content:
+                      application/json:
+                          schema:
+                              type: object
+                              properties:
+                                  data:
+                                      description: Array of log entries.
+                                      type: array
+                                      items:
+                                          $ref: '#/components/schemas/Log'
+                                  totalCount:
+                                      description: Total amount of log entries available with specified filter.
+                                      type: number
+                                      example: 814
+                                  timestamp:
+                                      description: UNIX timestamp.
+                                      example: 1618499988977
+              '500':
+                  $ref: '#/components/responses/Error'
+  '/logging/archive/{days}':
+      put:
+          tags:
+              - logging
+          summary: Archive logs
+          description: Archives all logs older than specified number of days.
+          parameters:
+              - in: path
+                name: days
+                schema:
+                    type: number
+                    example: 60
+                required: true
+                description: Number of days.
+          responses:
+              '200':
+                  description: Number of rows archived.
+                  content:
+                      application/json:
+                          schema:
+                              type: string
+                              example: 4225
+              '500':
+                  $ref: '#/components/responses/Error'
+components:
+  securitySchemes:
+    oAuth2Keycloak:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://dev1.virnao.com:8543/auth/realms/StackV/protocol/openid-connect/auth
+          tokenUrl: https://dev1.virnao.com:8543/auth/realms/StackV/protocol/openid-connect/token
+          scopes: {}
+  requestBodies:
+    ServiceRequest:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ServiceIntent"
+      description: Service intent JSON
+      required: true
+  responses:
+    Error:
+      description: Internal server fault or standardized error response.
+  schemas:
+    Operation:
+      type: string
+      enum:
+        - provision
+        - cancel
+        - reprovision
+        - propagate
+        - release
+        - reinstate
+        - commit
+        - rollback
+        - archive
+        - unarchive
+        - verify
+        - unverify
+        - reset
+    FullProfile:
+      type: object
+      description: This schema represents the structure of a service intent profile.
+      required:
+        - uuid
+        - name
+        - json
+      properties:
+        uuid:
+          type: string
+          title: The uuid schema
+          description: The profile's ID.
+          example:
+            - d1898051-fcfa-4920-bb3b-7f5918194def
+        name:
+          type: string
+          title: The name schema
+          description: The profile's user-given name.
+          example:
+            - DNC-102 for SENSE
+        json:
+          type: string
+          title: The json schema
+          description: "The profile intent itself, stored as a trimmed JSON string."
+        owner:
+          type: string
+          title: The owner schema
+          description: The username of the profile owner.
+          example:
+            - aejimenez
+        description:
+          type: string
+          title: The description schema
+          description: The profile's description.
+          example:
+            - For Tom and Jerry to use for pilot testing.
+        created:
+          type: string
+          format: date-time
+          title: The created schema
+          description: The profile's timestamp for creation.
+        lastEdited:
+          type: string
+          format: date-time
+          title: The lastEdited schema
+          description: The timestamp for when the profile was last edited.
+        authorized:
+          type: boolean
+          title: The authorized schema
+          description: Whether the profile carries an admin's authorization with it.
+        editable:
+          type: boolean
+          title: The editable schema
+          description: Whether the profile can be edited by licensed users.
+        editJson:
+          type: string
+          title: The editJson schema
+          description: The JSON string for user-configured editable fields.
+        licenses:
+          type: array
+          title: The licenses schema
+          description: The profile's collection of given licenses.
+          items:
+            $ref: "#/components/schemas/ProfileLicense"
+          example:
+            - ""
+    SlimProfile:
+      type: object
+      description: This schema represents the structure of a service intent profile.
+      required:
+        - uuid
+        - name
+      properties:
+        uuid:
+          type: string
+          title: The uuid schema
+          description: The profile's ID.
+          example:
+            - d1898051-fcfa-4920-bb3b-7f5918194def
+        name:
+          type: string
+          title: The name schema
+          description: The profile's user-given name.
+          example:
+            - DNC-102 for SENSE
+        owner:
+          type: string
+          title: The owner schema
+          description: The username of the profile owner.
+          example:
+            - aejimenez
+        description:
+          type: string
+          title: The description schema
+          description: The profile's description.
+          example:
+            - For Tom and Jerry to use for pilot testing.
+        created:
+          type: string
+          format: date-time
+          title: The created schema
+          description: The profile's timestamp for creation.
+        lastEdited:
+          type: string
+          format: date-time
+          title: The lastEdited schema
+          description: The timestamp for when the profile was last edited.
+        authorized:
+          type: boolean
+          title: The authorized schema
+          description: Whether the profile carries an admin's authorization with it.
+        editable:
+          type: boolean
+          title: The editable schema
+          description: Whether the profile can be edited by licensed users.
+        licenses:
+          type: array
+          title: The licenses schema
+          description: The profile's collection of given licenses.
+          items:
+            $ref: "#/components/schemas/ProfileLicense"
+          example:
+            - ""
+    ProfileLicense:
+      type: object
+      title: The license schema
+      description: >-
+        A license given to a user to allow execution and possible customization
+        of a profile.
+      required:
+        - username
+        - type
+        - remaining
+      properties:
+        username:
+          type: string
+          title: The username schema
+          description: The user that is being given the license.
+          example:
+            - xyang
+        type:
+          type: string
+          title: The type schema
+          description: >-
+            The type of license, tickets are only good for one instance
+            creation, whereas allocations are returned when instances are
+            deleted.
+          enum:
+            - ticket
+            - allocation
+        remaining:
+          type: number
+          title: The remaining schema
+          description: >-
+            For tickets, the number of remaining tickets. For allocations, the
+            maximum number of active instances allowed at one time.
+    Intent:
+      type: object
+      description: >-
+        A representation of a request for service instance creation or
+        modification.
+      required:
+        - id
+        - serviceInstanceUUID
+        - serviceDeltaUUID
+        - json
+        - provisioned
+      properties:
+        id:
+          type: string
+          description: Service intent UUID.
+          example: d2c27d84-7de4-4683-80f6-de9a3783f36d
+        serviceInstanceUUID:
+          type: string
+          description: UUID for associated service instance.
+          example: cfcfdc14-7f0d-4ab6-b325-719aa715f891
+        serviceDeltaUUID:
+          type: string
+          description: UUID for associated service delta.
+          example: 00d6fab2-e117-40e8-adc7-ee1f60b71b3c
+        provisioned:
+          type: boolean
+          description: Whether or not the intent was or is successfully provisioned.
+        json:
+          type: string
+          description: "The service intent itself, in JSON string format."
+        creation_time:
+          type: string
+          description: SQL Timestamp for intent creation.
+    IntentExpanded:
+      allOf:
+        - $ref: "#/components/schemas/Intent"
+        - type: object
+          properties:
+            delta:
+              $ref: "#/components/schemas/Delta"
+    Delta:
+      type: object
+      description: A service delta package.
+      properties:
+        id:
+          type: string
+          description: Service intent UUID.
+          example: d2c27d84-7de4-4683-80f6-de9a3783f36d
+        val:
+          type: string
+          description: "The service delta itself, in JSON string format."
+    ServiceIntent:
+      # $schema: 'http://json-schema.org/draft-07/schema'
+      # $id: 'http://schemas.stackv.com/serviceIntent.json'
+      type: object
+      title: Service Intent
+      description: "This schema represents the structure of a service intent, used to create or modify a service instance."
+      required:
+        - service
+        - alias
+      properties:
+        service:
+          # $id: '#/properties/service'
+          type: string
+          description: The type of service being created.
+          example: dnc
+        options:
+          # $id: '#/properties/options'
+          type: array
+          description: Array of option flags.
+          items:
+            # $id: '#/properties/options/items'
+            type: string
+            example: aws-form
+        service_profile_uuid: 
+          # $id: '#/properties/service_profile_uuid'
+          type: string
+          description: Optional link to a profile via UUID.
+          example: 456225c4-c549-4ca0-a585-a84247541315
+        queries:
+          # $id: '#/properties/queries'
+          type: array
+          items:
+            properties:
+              ask:
+                type: string
+                example: edit
+              options:
+                type: array
+                items:
+                  type: object
+                  example: {"data.connections[0].terminals[0].uri": "foo","alias": "bar"}
+        data:
+          oneOf:
+          - $ref: '#/components/schemas/DNCSchema'
+          # type: object
+          # example: 
+          #   type: Multi-Path P2P VLAN
+          #   connections:
+          #     - name: Connection 1
+          #       terminals:
+          #         - uri: test1
+          #           vlan_tag: any
+          #         - uri: test2
+          #           vlan_tag: any
+          #       bandwidth:
+          #         qos_class: bestEffort
+          #   uuid: a19c7b77-06e5-48cf-99b0-742c4fa1f453
+        alias:
+          # $id: '#/properties/alias'
+          type: string
+          description: Alias to give to the created service instance.
+          example: DNC Demo
+
+    Terminal:
+      type: object
+      properties:
+        uri:
+          type: string
+        vlan_tag:
+          type: string
+        ipv4_prefix_list:
+          type: string
+        assign_ip:
+          type: boolean
+    Bandwidth:
+      type: object
+      properties:
+        capacity:
+          type: string
+        unit:
+          type: string
+        qos_class:
+          type: string
+    ServiceIntentResponse:
+      required:
+        - service_uuid
+        - intent_uuid
+      type: object
+      properties:
+        service_uuid:
+          type: string
+        intent_uuid:
+          type: string
+        queries:
+          type: array
+          items:
+            properties:
+              asked:
+                type: string
+              results:
+                type: array
+                items:
+                  type: object
+        model:
+          type: string
+    CapabilityDescription:
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+    DiscoverDescription:
+      properties:
+        version:
+          type: string
+        capailities:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapabilityDescription"
+        end_points:
+          type: array
+          items:
+            properties:
+              url:
+                type: string
+              description:
+                type: string
+    ServiceDescription:
+      # $id: 'http://schemas.stackv.com/serviceDescription.json'
+      type: object
+      title: Service Description
+      description: 'This schema represents the simplified metadata of a service instance, as handled or known by the frontend.'
+      required:
+        - type
+        - referenceUUID
+        - alias
+        - owner
+      properties:
+        type:
+          # $id: '#/properties/type'
+          type: string
+          description: The type of service.
+          example: Dynamic Network Connection
+        intents:
+          # $id: '#/properties/intents'
+          type: array
+          description: Array of intents used during this instance's workflows.
+          items:
+            $ref: '#/components/schemas/BackendIntent'
+        alias:
+          # $id: '#/properties/alias'
+          type: string
+          description: Alias of the service instance.
+          example: DNC Pilot
+        referenceUUID:
+          # $id: '#/properties/referenceUUID'
+          type: string
+          description: UUID of the service instance
+          example: 59e9624b-48e0-48dd-95b9-8c020046dffa
+        state:
+          # $id: '#/properties/state'
+          type: string
+          description: Current full state of the service instance.
+          example: CANCEL - COMMITTING
+        owner:
+          # $id: '#/properties/owner'
+          type: string
+          description: Username of owner.
+          example: admin
+        lastState:
+          # $id: '#/properties/lastState'
+          type: string
+          description: 'Previous subState, for moderation and debugging.'
+          example: PROPAGATED
+        verification:
+          # $id: '#/properties/verification'
+          type: string
+          description: 'Verification state, for moderation and debugging.'
+          example: INIT
+        timestamp:
+          # $id: '#/properties/timestamp'
+          type: string
+          description: Timestamp of service instance creation.
+          example: '2021/06/21 17:59:01'
+        archived:
+          # $id: '#/properties/archived'
+          type: boolean
+          description: 'Archived instances are no longer displayed by default, as well as other possible moderations.'
+    BackendIntent:
+          # $id: '#/definitions/backendIntent'
+          type: object
+          title: Backend Intent
+          description: 'Schema of the true structure of a stored intent, as seen in persistence'
+          required:
+            - id
+            - json
+          properties:
+            id:
+              # $id: '#/definitions/backendIntent/properties/id'
+              type: string
+              description: UUID of the service intent.
+              example: a8848755-39cc-44db-a0ab-dc99f9daffcc
+            json:
+              # $id: '#/definitions/backendIntent/properties/json'
+              type: string
+              description: JSON string containing the actual intent itself. See ServiceIntent.json for more information.
+            provisioned:
+              # $id: '#/definitions/backendIntent/properties/provisioned'
+              type: boolean
+              description: Whether the intent was successfully provisioned to READY.
+            creation_time:
+              # $id: '#/definitions/backendIntent/properties/creation_time'
+              type: string
+              description: Creation time of the service intent.
+              example: 'Jun 21, 2021, 1:59:01 PM'
+            serviceInstanceUUID:
+              # $id: '#/definitions/backendIntent/properties/serviceInstanceUUID'
+              type: string
+              description: UUID of the parent service instance.
+              example: 59e9624b-48e0-48dd-95b9-8c020046dffa
+            serviceDeltaUUID:
+              # $id: '#/definitions/backendIntent/properties/serviceDeltaUUID'
+              type: string
+              description: UUID of the related service delta.
+              example: 875ceb85-7a03-4799-a8dd-23d7b883d527
+    DomainDescription:
+      properties:
+        domain_name:
+          type: string
+          example: n/a
+        domain_uri:
+          type: string
+          example: urn:ogf:network:maxgigapop.net:2013
+        edge_points:
+          type: array
+          items:
+            properties:
+              vlan_pool:
+                type: string
+                example: 3600-3619
+              ep_uri:
+                type: string
+                example: urn:ogf:network:maxgigapop.net:2013:s0:1_3:180-134.research.maxgigapop.net:eth1
+              ipv4_pool:
+                type: string
+                example: 172.16.2.0/30,172.17.2.0/30,172.18.2.0/30,172.19.2.0/30,172.31.6.0/24,172.31.7.0/24,172.31(...)
+              ep_name:
+                type: string
+                example: n/a
+              capacity:
+                type: string
+                example: 100000
+        peer_points:
+          type: array
+          items:
+            properties:
+              peer_vlan_pool:
+                type: string
+                example: 3600-3619
+              port_vlan_pool:
+                type: string
+                example: 3610-3629
+              peer_uri:
+                type: string
+                example: urn:ogf:network:es.net:2013::wash-cr5:6_1_1:+
+              port_uri:
+                type: string
+                example: urn:ogf:network:maxgigapop.net:2013:s0:1_1:wash-cr5
+              peer_name: 
+                type: string
+                example: n/a
+              port_name:
+                type: string
+                example: n/a
+              peer_capacity:
+                type: string
+                example: 5000
+              port_capacity:
+                type: string
+                example: 10000
+    VerificationResult:
+        # $schema: 'http://json-schema.org/draft-07/schema'
+        # $id: 'http://schemas.stackv.com/verification.json'
+        type: object
+        title: Verification Data
+        description: This schema represents the full result set from service instance verification.
+        required:
+            - delta_uuid
+            - creation_time
+            - reduction
+            - addition
+        properties:
+            delta_uuid:
+                # $id: '#/properties/delta_uuid'
+                type: string
+                description: UUID of delta being verified.
+                example: de159dae-7b00-480c-b4ee-d34e637c68b0
+            creation_time:
+                # $id: '#/properties/creation_time'
+                type: string
+                description: When this verification run started.
+                example: '2021-04-05'
+            verified_reduction:
+                # $id: '#/properties/verified_reduction'
+                type: string
+                description: JSON string of the verified reduction model.
+                example: '(Reduction model JSON)'
+            verified_addition:
+                # $id: '#/properties/verified_addition'
+                type: string
+                description: JSON string of the verified addition model.
+                example: '(Addition model JSON)'
+            unverified_reduction:
+                # $id: '#/properties/unverified_reduction'
+                type: string
+                description: JSON string of the unverified reduction model.
+                example: '(Reduction model JSON)'
+            unverified_addition:
+                # $id: '#/properties/unverified_addition'
+                type: string
+                description: JSON string of the unverified addition model.
+                example: '(Addition model JSON)'
+            reduction:
+                # $id: '#/properties/reduction'
+                type: string
+                description: String boolean of whether the reduction is present.
+                enum:
+                    - 'true'
+                    - 'false'
+            addition:
+                # $id: '#/properties/addition'
+                type: string
+                description: String boolean of whether the addition is present.
+                enum:
+                    - 'true'
+                    - 'false'
+    DNCSchema:
+      # $schema: 'http://json-schema.org/draft-07/schema'
+      # $id: 'http://schemas.stackv.com/dncSchema.json'
+      type: object
+      title: DNC root schema
+      required:
+        - data
+        - service
+      properties:
+        data:
+          # $id: '#/properties/data'
+          type: object
+          description: The main data object of the intent.
+          required:
+            - type
+            - connections
+          properties:
+            uuid:
+              # $id: '#/properties/data/properties/uuid'
+              type: string
+              description: Optional reference to instance UUID.
+              example: 484ad114-416d-4ca6-9c61-1f3731d6c682
+            type:
+              # $id: '#/properties/data/properties/type'
+              type: string
+              description: DNC configuration mode.
+              default: Multi-Point L3VPN
+              enum:
+                - Multi-Path P2P VLAN
+                - Multi-Point VLAN Bridge
+                - Multi-Point L3VPN
+            connections:
+              # $id: '#/properties/data/properties/connections'
+              type: array
+              description: The array of service connections.
+              default: []
+              items:
+                $ref: '#/components/schemas/Connection'
+          additionalProperties: false
+        service:
+          # $id: '#/properties/service'
+          type: string
+          description: DNC service flag.
+          default: dnc
+          enum:
+            - dnc
+    Connection:
+      # $id: '#/definitions/connection/'
+      type: object
+      description: A connection configuration.
+      required:
+        - name
+        - terminals
+      properties:
+        suggest_ip_range:
+          # $id: '#/definitions/connection/properties/suggest_ip_range'
+          type: array
+          description: List of IP Range Suggestions.
+          items:
+            # $id: '#/definitions/connection/properties/suggest_ip_range/items'
+            type: object
+            description: The optional configuration for IP range suggestions.
+            properties:
+              name:
+                # $id: '#/definitions/connection/properties/suggest_ip_range/properties/name'
+                type: string
+                example: IP Range 4
+              start:
+                # $id: '#/definitions/connection/properties/suggest_ip_range/properties/start'
+                type: string
+                description: Start of the IP range suggestion.
+                example: 10.1.1.10/24
+              end:
+                # $id: '#/definitions/connection/properties/suggest_ip_range/properties/end'
+                type: string
+                description: End of the IP range suggestion.
+                example: 10.1.1.20/24
+            additionalProperties: false
+        schedule:
+          # $id: '#/definitions/connection/properties/schedule'
+          type: object
+          description: Connection scheduling request configuration.
+          properties:
+            duration:
+              # $id: '#/definitions/connection/properties/schedule/properties/duration'
+              type: string
+              description: Duration of the connection.
+              pattern: '\d+[d|h|m|s]|^\d{2}\/\d{2}\/\d{4}$'
+              example: '4h:15m:20s'
+            start:
+              # $id: '#/definitions/connection/properties/schedule/properties/start'
+              type: string
+              description: Start of the scheduling window.
+              pattern: '\d+[d|h|m|s]|^\d{2}\/\d{2}\/\d{4}$'
+              example: 08/20/1998
+            end:
+              # $id: '#/definitions/connection/properties/schedule/properties/end'
+              type: string
+              description: End of the scheduling window.
+              pattern: '\d+[d|h|m|s]|^\d{2}\/\d{2}\/\d{4}$'
+              example: 08/22/1998
+          additionalProperties: false
+        bandwidth:
+          # $id: '#/definitions/connection/properties/bandwidth'
+          type: object
+          description: Connection bandwidth limit configuration.
+          properties:
+            qos_class:
+              # $id: '#/definitions/connection/properties/bandwidth/properties/qos_class'
+              type: string
+              description: Quality of Service (QoS) network priority.
+              default: bestEffort
+              enum:
+                - guaranteedCapped
+                - softCapped
+                - anyAvailable
+                - bestEffort
+            capacity:
+              # $id: '#/definitions/connection/properties/bandwidth/properties/capacity'
+              type: string
+              description: Bandwidth limit in Mbps.
+              default: '1024'
+          additionalProperties: false
+        name:
+          # $id: '#/definitions/connection/properties/name'
+          type: string
+          description: 'Connection name, for labeling purposes.'
+          example: Connection 1
+        terminals:
+          # $id: '#/definitions/connection/properties/terminals'
+          type: array
+          description: The array of connection terminals.
+          default: []
+          items:
+            # $id: '#/definitions/connection/properties/terminals/items'
+            type: object
+            description: A terminal of a connection.
+            default: {}
+            required:
+              - uri
+            properties:
+              name:
+                # $id: '#/definitions/connection/properties/terminals/items/properties/name'
+                type: string
+                description: Reference name for the terminal.
+                example: Terminal 2
+              vlan_tag:
+                # $id: '#/definitions/connection/properties/terminals/items/properties/vlan_tag'
+                type: string
+                description: Optional VLAN tag for the terminal.
+                default: any
+              ipv4_prefix_list:
+                # $id: '#/definitions/connection/properties/terminals/items/properties/ipv4_prefix_list'
+                type: string
+                description: Optional list of IPV4 prefixes.
+                example: ''
+              uri:
+                # $id: '#/definitions/connection/properties/terminals/items/properties/uri'
+                type: string
+                description: Terminal URI.
+                example: 'urn:ogn:test:sw1'
+              assign_ip:
+                # $id: '#/definitions/connection/properties/terminals/items/properties/assign_ip'
+                type: boolean
+                description: '[[TODO: clarification]]'
+              mac_address_list:
+                # $id: '#/definitions/connection/properties/terminals/items/properties/mac_address_list'
+                type: string
+                description: '[[TODO: clarification]]'
+                pattern: '^\w{2}:\w{2}:\w{2}:\w{2}:\w{2}:\w{2}(,\w{2}:\w{2}:\w{2}:\w{2}:\w{2}:\w{2})*$'
+                example: 'a4:55:12:0e:50:49,56:2a:4f:10:9b:e9'
+            additionalProperties: false
+        path_tprofile:
+          # $id: '#/definitions/connection/properties/path_profile'
+          type: object
+          description: '[[TODO: clarification]]'
+          default: {}
+          required:
+            - inclusion_list
+            - exclusion_list
+          properties:
+            inclusion_list:
+              # $id: '#/definitions/connection/properties/path_profile/properties/inclusion_list'
+              type: array
+              description: List of included paths.
+              default: []
+              items:
+                $ref: '#/components/schemas/Path'
+            exclusion_list:
+              # $id: '#/definitions/connection/properties/path_profile/properties/exclusion_list'
+              type: array
+              description: List of excluded paths.
+              default: []
+              items:
+                $ref: '#/components/schemas/Path'
+          additionalProperties: false
+      additionalProperties: false
+    Path:
+      # $id: '#/definitions/path'
+      type: object
+      description: '[[TODO: clarification]]'
+      default: {}
+      required:
+        - uri
+      properties:
+        uri:
+          # $id: '#/definitions/path/properties/uri'
+          type: string
+          description: Path URI.
+          example: 'urn:ogn:paths:from-to'
+      additionalProperties: false
+    Log:
+            # '$schema': http://json-schema.org/draft-07/schema
+            # '$id': http://schemas.stackv.com/log.json
+            type: object
+            title: Log
+            description: This schema represents the structure of a log entry.
+            required:
+                - id
+                - timestamp
+                - level
+                - message
+                - event
+            properties:
+                id:
+                    # '$id': '#/properties/id'
+                    type: string
+                    description: Database ID for the entry.
+                    example: '242367'
+                timestamp:
+                    # '$id': '#/properties/timestamp'
+                    type: string
+                    description: When the log was registered.
+                    example: 2021/04/15 14:30:00.005
+                referenceUUID:
+                    # '$id': '#/properties/referenceUUID'
+                    type: string
+                    description: A service instance UUID that the log is associated with.
+                    example: 864f11c9-dd22-4300-9301-2c1c479b6d26
+                level:
+                    # '$id': '#/properties/level'
+                    $ref: '#/components/schemas/LogLevel'
+                logger:
+                    #   '$id': '#/properties/logger'
+                    type: string
+                    description: Class name of the logger that created this entry.
+                    example: SystemModelCoordinator
+                message:
+                    #   '$id': '#/properties/message'
+                    type: string
+                    description: The main event data.
+                    example: '{"message":"driverInstanceMap is empty - waiting for system update"}'
+                event:
+                    #   '$id': '#/properties/event'
+                    type: string
+                    description: The specific method or signature of that created this entry.
+                    example: SystemModelCoordinator.autoUpdate.warning
+                exception:
+                    #   '$id': '#/properties/exception'
+                    type: string
+                    description: An exception string, including trace and formatted information.
+                    example: ''
+                targetID:
+                    #   '$id': '#/properties/targetID'
+                    type: string
+                    description: Extra UUID field, for additional tracking or metadata purposes. Specific
+                        to the log event.
+                    example: f4028207-af0d-4bd7-b81c-9db591b82a17
+    LogLevel:
+        # '$id': '#/definitions/logLevel'
+        type: string
+        description: Log severity level, ranging from TRACE (minor debugging) to ERROR
+            (very important).
+        enum:
+            - TRACE
+            - INFO
+            - DEBUG
+            - WARN
+            - ERROR
+    ProfileEdit:
+      # $id: '#/definitions/editConfig'
+      type: object
+      title: Editable Field Configuration
+      description: A constraint placed upon the license for field validation.
+      required:
+        - path
+      properties:
+        path:
+          # $id: '#/definitions/license/properties/username'
+          type: string
+          description: The user that is being given the license.
+          example: xyang
+        valid:
+          # $id: '#/definitions/editConfig/properties/valid'
+          type: string
+          description: 'The validation constraint itself. This can be a CSV, a numeric range, or raw regex (without slashes or flags).'
+          example: ^uri.*
+        description:
+          # $id: '#/definitions/editConfig/properties/description'
+          type: string
+          description: User-facing label for understanding field context.
+          example: VLAN for the MAX node.
+    ProfileManifest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The profile name.
+          example: DNC-2 1004
+        description:
+          type: string
+          description: The profile description.
+          example: Usable on MAX network.
+        editable:
+          type: boolean
+          description: Whether the profile is editable by licensed users.
+        data:
+          type: string
+          description: Profile JSON in string format.
+        edit:
+          # $id: '#/properties/edit'
+          type: array
+          description: The profile's editable field configuration.
+          items:
+            $ref: '#/components/schemas/ProfileEdit'

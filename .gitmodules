@@ -1,0 +1,3 @@
+[submodule "external/SciNetGenesis"]
+	path = external/SciNetGenesis
+	url = git@github.com:SelfDrivingNetworkLab/SciNetGenesis.git

@@ -4,7 +4,7 @@
 
 背景:在 VSCode webview 里复制含相对链接的文本,链接会被改写成
 `vscode-webview://<hash>/src/...`,别人 clone 后打不开。本脚本把这层壳剥掉,
-还原成 `../src/...`(docs/findings.md)或 `../../src/...`(docs/archive/x.md)等。
+还原成 `../src/...`(docs/findings_YYYYMMDD.md)或 `../../src/...`(docs/archive/x.md)等。
 
 用法:`fix_webview_links.py <file.md> [<file2.md> ...]`(路径相对仓库根)。
 被改动的文件名打到 stdout(供 pre-commit hook 决定 re-add 哪些);其余静默。

@@ -1,8 +1,10 @@
 # CLAUDE.md
 
-<!-- 起项目时替换下一段:项目名 + 一句话研究方向 + 当前阶段。这段是 agent 恢复上下文的第一句话。 -->
+`genesis_scinet` — **SciNet 方向的系统研究**:为 AI 驱动的自主科学实验闭环,做支撑它的网络与数据传输基础设施(GPU-to-GPU 传输、science-aware 自适应路由、可靠性与韧性、跨机构 workflow 协调),先在合作方已有的网络 digital twin 上做原型与验证。**不做**具体领域的科学 AI 模型(蛋白质/材料等),那是上层的事。
 
-`<PROJECT_NAME>` — `<一句话说明研究什么、探索什么>`。早期探索阶段,研究方向与实验对象会随探索演进,实验多样且多数无效。
+隶属美国能源部 Genesis Mission 计划下的 SciNet 项目(Science-Aware Network Operations for Research Networks),当前是**六个月 Phase 1 加速阶段**,目标是做出 proof of concept 与若干 demo,支撑 12 月的 Phase 2 proposal。
+
+**当前处于方向收敛期**:proposal 仍很 high-level,digital twin 的具体形态、我们组负责的模块、第一个可测的系统问题都**尚未确定**,会随合作方会议在数周内演进。因此现阶段的首要任务不是跑实验,而是把"要解决什么问题"收敛成一个可测的假设。背景见 `resources/conversation_20260727.md`(注:该记录源自语音转写 + AI 整理,人名与推断处已标注,引用前须核对)。
 
 记录系统的可靠性建立在**结构强制**,而非执行者记忆。项目记忆属于 Git 仓库,不属于任何一台 server。换机器 = `git clone`。
 
@@ -24,25 +26,29 @@
 ## 3. 项目记忆地图
 
 - `EXPERIMENTS.md` — 实验索引(表格,一行一个实验)。
-- `docs/findings.md` — 发现日志:**结论性发现**,每条带 `runs/` 证据链接。较旧条目定期手动归档进 `docs/archive/findings.md`(随仓库迁移),避免主文件过大。
-- `docs/knowledge.md` — **通用知识点**(工具行为/系统特性/领域事实),不随实验过期;**纯人工维护,agent 不写**。较旧条目定期手动归档进 `docs/archive/knowledge.md`(同为纯人工维护,agent 不写)。
-- `docs/ideas.md` — **项目思考与点子**(假设、待办、推测,**允许过期**);过期内容手动剪切进 `docs/archive/ideas.md`。
+- `docs/findings_{YYYYMMDD}.md` — **结论性发现**,每条带 `runs/` 证据链接。**按日期分卷**:文件名日期 = 该卷起始日期,由我决定何时新建下一卷,agent 不新建;**最新卷 = 日期最大的那个**。旧卷原地保留即是归档,`docs/archive/` 下不设 findings 归档。agent 可写已有 findings 卷。
+- `docs/knowledge_{YYYYMMDD}.md` — **通用知识点**(工具行为/系统特性/领域事实),不随实验过期;**纯人工维护,agent 不写、不新建**(可读可引用)。**按日期分卷**防止单文件过大:文件名日期 = 该卷起始日期,由我看情况手动新建下一卷,**最新卷 = 日期最大的那个**;旧卷原地保留即是归档,故 `docs/archive/` 下**不设** knowledge 归档。查全部知识:`ls docs/knowledge_*.md`。
+- `docs/_index_findings.md` / `docs/_index_knowledge.md` — 对应分卷的目录索引,只收录一级至三级标题。新增卷或相关标题变化时同步更新;agent 可维护索引,但不能借此新建 findings/knowledge 卷。
+- `docs/ideas.md` — **项目思考与点子**(假设、待办、推测,**允许过期**);**纯人工维护,agent 不写、不改**(可读可引用)。过期内容由我手动剪切进 `docs/archive/ideas.md`(同为纯人工维护,agent 不写)。
 - `docs/current_experiment_plan.md` — 当前实验的计划稿(**覆写式**,只反映当前实验;假设/步骤/待决项,对齐用);**末尾 `## 实验历史`** 记历次实验简介,换实验时由 AI carry-forward 进新 plan。
-- `docs/current_log.md` — 当前实验**运行流水账**(**append-only**)。**由我(人)手写维护,agent 不写入、不修改其内容**;我据此慢慢读、再**手动** distill 进 findings/knowledge。agent 对本文件的职责仅限于:换实验起稿时**创建**空文件、换实验时连同 plan 一并**归档**为 `{YYYYMMDD}_{tag}_log.md`。
+- `docs/current_log.md` — 当前实验**运行流水账**(**append-only**)。**由我(人)手写维护,agent 不写入、不修改其内容**;我据此慢慢读、再**手动** distill 进最新一卷 `findings_{YYYYMMDD}.md` / `knowledge_{YYYYMMDD}.md`。agent 对本文件的职责仅限于:换实验起稿时**创建**空文件、换实验时连同 plan 一并**归档**为 `{YYYYMMDD}_{tag}_log.md`。
 - `docs/_plan_template.md` — 计划稿模板。新实验 `cp docs/_plan_template.md docs/current_experiment_plan.md` 起稿;TBD/TODO 约定、对齐/执行两阶段、覆写式纪律、实验历史 carry-forward 都写在模板抬头。
-- `docs/archive/` — 历史计划稿归档({YYYYMMDD}_{tag}.md)+ 对应运行流水账({YYYYMMDD}_{tag}_log.md),换实验时把 current plan / current_log 一并挪入;另有 `ideas.md` / `findings.md` / `knowledge.md`(分别是 ideas/findings/knowledge 的溢出归档,按内容追加、不按实验切分)。
+- `docs/archive/` — 历史计划稿归档({YYYYMMDD}_{tag}.md)+ 对应运行流水账({YYYYMMDD}_{tag}_log.md),换实验时把 current plan / current_log 一并挪入;另有 `ideas.md` 作为 ideas 的溢出归档。**findings 和 knowledge 都不在此归档**——它们按日期分卷,旧卷留在 `docs/` 下。
 - `configs/` — 实验配置 yaml。
 - `runs/` — 本地原始数据,**大件不进 git**(仅 `description.txt` / `config.yaml` / `metrics.json` / `env_snapshot.txt` 小文件入库)。
 - `env/` — 外部依赖重建配方;凡 env 中出现 git 之外、复现要依赖的 artifact(包、源码、模型/数据、系统工具,含工具自动拉取的)即同步登记,细则见 `env/README.md`。
-- `resources/` — **外部资料**(论文 PDF、外部文档、摘来的笔记 md),与 `docs/`(本项目产出的记忆)相对,是外部输入的原材料。**纯人工维护,agent 只读不写**:可读取并引用其内容,但不主动写入/重命名/整理/删除,需要往里放东西时提议由我来放。小文本(md/txt/bib)进 git 随仓库迁移;大件(pdf 等)不进 git,须在 `resources/README.md` 的清单里登记出处,细则见该文件。
-- `weekly_report/` — **组会周报**,一次组会一个 md,文件名 `{YYYYMMDD}.md`(组会当天日期,排序即时间顺序);模板 `_report_template.md`。**人机协作**(区别于 `docs/current_log.md` 的人工独占):**AI 起草**——依据 `EXPERIMENTS.md` / `runs/*/metrics.json` / `docs/findings.md` 汇总本周客观结果,每条结论带证据链接,口径沿用 §7(观察与解释分开、推测须标注、负结果照实写);**我定稿**——补判断、提问与下周打算。周报是汇报快照而非记忆本身,结论最终沉淀进 `docs/findings.md`,周报只引用不复制。
+- `resources/` — **外部资料**(论文 PDF、外部文档、摘来的笔记 md),与 `docs/`(本项目产出的记忆)相对,是外部输入的原材料。**默认纯人工维护,agent 只读不写**:可读取并引用其内容,但不主动写入/重命名/整理/删除,需要往里放东西时提议由我来放。**例外:我明确指定允许修改 `resources/` 中的具体文件或范围时,agent 可在该次授权范围内操作;授权不自动延续到其他文件或后续任务。**小文本(md/txt/bib)进 git 随仓库迁移;大件(pdf 等)不进 git,须在 `resources/README.md` 的清单里登记出处,细则见该文件。
+- `weekly_report/` — **组会周报**,一次组会一个 md,文件名 `{YYYYMMDD}.md`(组会当天日期,排序即时间顺序);模板 `_report_template.md`。**人机协作**(区别于下面几处的人工独占):**AI 起草**——依据 `EXPERIMENTS.md` / `runs/*/metrics.json` / 最新一卷 `docs/findings_{YYYYMMDD}.md` 汇总本周客观结果,每条结论带证据链接,口径沿用 §7(观察与解释分开、推测须标注、负结果照实写);**我定稿**——补判断、提问与下周打算。周报是汇报快照而非记忆本身,结论最终沉淀进最新 findings 卷,周报只引用不复制。
+
+**人工独占清单(agent 默认只读不写,一律不新建/不改名/不整理/不删除)**:`docs/knowledge_{YYYYMMDD}.md`(全部分卷)、`docs/ideas.md`、`docs/archive/ideas.md`、`docs/current_log.md`(仅换实验时创建空文件与归档)、`resources/`。这几处是我的思考缓冲区,agent 扫到问题可在对话里指出并提议,由我来动手;其中仅 `resources/` 可在我明确指定具体文件或范围时按上述例外授权修改。**agent 可写**的记忆文件是:`EXPERIMENTS.md`(入口自动)、已有的 `docs/findings_{YYYYMMDD}.md`、两个 `_index_*.md`、`docs/current_experiment_plan.md`、`docs/archive/` 下的计划稿/流水账归档、`weekly_report/{YYYYMMDD}.md`(起草);findings 新卷仍只由我创建。
 
 ## 4. 新接手阅读顺序
 
 1. 本文件 `CLAUDE.md`。
 2. `docs/current_experiment_plan.md` —— 末尾「实验历史」看历次实验脉络,顶部看当前实验在做什么。
-3. `docs/findings.md` —— 已确立的结论性发现。
+3. `docs/_index_findings.md` —— 从目录定位相关 `findings_{YYYYMMDD}.md` 卷中的已确立结论。
 4. `EXPERIMENTS.md` 最近若干行。
+5. (方向收敛期额外)`resources/conversation_20260727.md` —— 项目背景问答:项目定位、Genesis Mission 与 SciNet 是什么、digital twin 指什么、候选研究方向。**是背景材料不是结论**:其中含语音转写误识别与 AI 推断,标注了置信度的地方须回原始出处核对。
 
 ## 5. Tag 命名约定
 
