@@ -1,0 +1,47 @@
+<div id="network-learning-c">
+  <style>
+    #network-learning-c { color: var(--foreground); }
+    #network-learning-c .na-header { display:flex; align-items:start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; padding-right:70px; }
+    #network-learning-c h2 { margin:0; }
+    #network-learning-c .na-node { position:relative; z-index:1; min-width:0; width:100%; box-sizing:border-box; padding:10px 12px; text-align:center; border:1px solid var(--border); border-radius:8px; background:var(--background); }
+    #network-learning-c .na-node-inner { position:absolute; inset:0; border-radius:inherit; background:color-mix(in srgb,var(--viz-series-1) 7%,transparent); z-index:-1; }
+    #network-learning-c .na-node code { display:block; color:var(--foreground); background:transparent; overflow-wrap:anywhere; }
+    #network-learning-c .na-label { display:block; margin-top:4px; }
+    #network-learning-c .na-detail { display:block; margin-top:4px; color:var(--foreground); }
+    #network-learning-c .na-terminal { border-radius:24px; width:max-content; max-width:100%; padding:6px 20px; }
+    #network-learning-c .na-policy { border-style:dashed; }
+    #network-learning-c .na-policy .na-node-inner { background:color-mix(in srgb,var(--viz-series-2) 7%,transparent); }
+    #network-learning-c .na-legend { margin-top:22px; display:flex; gap:8px 20px; flex-wrap:wrap; }
+    #network-learning-c .na-legend-mark { display:inline-block; width:18px; height:12px; border:1px dashed var(--border); border-radius:3px; vertical-align:middle; margin-right:6px; }
+    #network-learning-c [hidden] { display:none !important; }
+    #network-learning-c .na-learning-flow { display:grid; grid-template-columns:minmax(0,1fr); justify-items:center; max-width:540px; margin:0 auto; }
+    #network-learning-c .na-learning-flow .na-node { width:100%; }
+    #network-learning-c .na-learning-flow .na-terminal { width:max-content; }
+    #network-learning-c .na-arrow { height:28px; display:grid; place-items:center; color:var(--muted-foreground); }
+    #network-learning-c .na-stage { display:block; margin-bottom:4px; }
+    @media(max-width:620px) {
+      #network-learning-c .na-header { padding-right:0; }
+    }
+  </style>
+
+  <section id="learning-graph-c" aria-label="Figure C: record correlation, calibration, and adjustment after a run">
+    <div class="na-header"><h2>Figure C · Learning Graph</h2><span class="text-small">Draft design · L1–L3 · Long loop</span></div>
+    <div class="na-learning-flow">
+      <div class="na-node na-terminal">START · Transfer records after a run</div>
+      <div class="na-arrow" aria-hidden="true">↓</div>
+      <div class="na-node"><i class="na-node-inner"></i><span class="na-stage text-small">L1 · Pair reservations with actual transfers</span><code>join_records</code><span class="na-label">Join transfer records to commitments by commitmentRef</span><span class="na-detail text-small">Compare achieved / reserved; retain failed transfers</span></div>
+      <div class="na-arrow" aria-hidden="true">↓</div>
+      <div class="na-node"><i class="na-node-inner"></i><span class="na-stage text-small">L2 · Calibrate</span><code>calibrate</code><span class="na-label">Calibrate the achievable-rate model for each site pair</span><span class="na-detail text-small">Estimate calibration coefficients and p50 / p95 ranges</span></div>
+      <div class="na-arrow" aria-hidden="true">↓</div>
+      <div class="na-node"><i class="na-node-inner"></i><span class="na-stage text-small">L2 · Attribute causes</span><code>attribute_cause</code><span class="na-label">Distinguish end-host limits from network limits</span><span class="na-detail text-small">end_host / network; use probes and other evidence</span></div>
+      <div class="na-arrow" aria-hidden="true">↓</div>
+      <div class="na-node na-policy"><i class="na-node-inner"></i><span class="na-stage text-small">L3 · Plan adjustments</span><code>◇ plan_adjustments</code><span class="na-label">Plan changes using the calibrated model and circuit utilization</span><span class="na-detail text-small">Reserve rates the hosts can achieve; shrink or tear down idle circuits</span></div>
+      <div class="na-arrow" aria-hidden="true">↓</div>
+      <div class="na-node"><i class="na-node-inner"></i><span class="na-stage text-small">L3 · Apply</span><code>apply_adjustments</code><span class="na-label">Apply reservation and circuit adjustments</span><span class="na-detail text-small">Use the calibrated rate model in subsequent quotes</span></div>
+      <div class="na-arrow" aria-hidden="true">↓</div>
+      <div class="na-node na-terminal">END</div>
+    </div>
+    <div class="na-legend text-small"><span><i class="na-legend-mark"></i>◇ Policy: rules first; replaceable implementation</span><span>Inputs: transfer records + commitmentRef + probes / utilization data</span></div>
+  </section>
+
+</div>

@@ -34,6 +34,7 @@
 ├── scripts/
 │   ├── run_experiment.py      # 唯一实验入口:合并配置 → 跑 → 落盘 → 登记 → commit+push          [git]
 │   ├── fix_webview_links.py   # 把 IDE 粘贴出的 vscode-webview 链接还原成仓库相对路径             [git]
+│   ├── extract_md_images.py   # md 内嵌 base64 图片 → resources/imgs/ 文件 + 相对路径引用         [git]
 │   └── git-hooks/pre-commit   # 版本化 hook(env/setup.sh 里 core.hooksPath 激活)                [git]
 ├── src/
 │   ├── experiments/{tag}/     # 每个实验一个文件夹(按 tag 分类,不裸露平铺),内部允许杂乱       [git]
@@ -48,6 +49,7 @@
 ├── resources/                 # 外部资料(论文/文档/笔记),人工维护、agent 只读不写
 │   ├── README.md              #   纪律 + 大件出处清单                                            [git]
 │   ├── *.md / *.txt / *.bib   #   小文本                                                         [git]
+│   ├── imgs/                  #   md 引用的图片,{YYYYMMDD}_{tag}.{ext}(pre-commit 自动抽取)        [git]
 │   └── *.pdf / office / 压缩包 #   大件                                              [本地,不进 git]
 ├── weekly_report/             # 组会周报(人机协作:AI 起草、我定稿)
 │   ├── _report_template.md    #   周报模板(用法/协作方式见其抬头)                              [git]

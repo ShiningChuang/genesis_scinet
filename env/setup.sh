@@ -12,7 +12,7 @@ cd "$REPO_ROOT"
 PY=python3
 VENV="$REPO_ROOT/.venv"
 
-echo "==> [1/4] git hooks(版本化 pre-commit:重写 IDE webview 链接为相对路径)"
+echo "==> [1/4] git hooks(版本化 pre-commit:md 内嵌 base64 图片抽到 resources/imgs/ + 重写 IDE webview 链接为相对路径)"
 git config core.hooksPath scripts/git-hooks
 chmod +x scripts/git-hooks/* 2>/dev/null || true
 

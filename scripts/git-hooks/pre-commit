@@ -1,16 +1,29 @@
 #!/bin/sh
 # 版本化 git hook(经 core.hooksPath 激活,见 env/setup.sh)。
-# 提交前:把暂存的 .md 里 IDE 带出来的 vscode-webview://<host>/ 链接重写成相对路径。
-# 设计成"尽力而为":任何异常都不阻断提交(链接美化非正确性门槛)。
+# 提交前对暂存的 .md 做两件事:
+#   1. 内嵌 base64 图片 → 抽到 resources/imgs/{YYYYMMDD}_{tag}.{ext},原处改成相对路径引用。
+#      这是正确性门槛(防巨型 base64 进 git):脚本出错即阻断提交。
+#   2. IDE 带出来的 vscode-webview://<host>/ 链接 → 相对路径。
+#      "尽力而为":任何异常都不阻断提交(链接美化非正确性门槛)。
 
 md=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' 2>/dev/null)
 [ -z "$md" ] && exit 0
+
+imgs=$(printf '%s\n' "$md" | xargs python3 scripts/extract_md_images.py) || {
+  echo "pre-commit: extract_md_images.py 失败,已阻断提交(确认无误可 git commit --no-verify 跳过)" >&2
+  exit 1
+}
+if [ -n "$imgs" ]; then
+  printf '%s\n' "$imgs" | xargs git add
+  echo "pre-commit: extracted base64 images ->"
+  printf '%s\n' "$imgs" | sed 's/^/  /'
+fi
 
 changed=$(printf '%s\n' "$md" | xargs python3 scripts/fix_webview_links.py 2>/dev/null) || exit 0
 
 if [ -n "$changed" ]; then
   printf '%s\n' "$changed" | xargs git add 2>/dev/null
   echo "pre-commit: rewrote vscode-webview links ->"
-  printf '  %s\n' "$changed"
+  printf '%s\n' "$changed" | sed 's/^/  /'
 fi
 exit 0
