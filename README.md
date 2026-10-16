@@ -2,7 +2,7 @@
 
 **SciNet 方向的系统研究**:为 AI 驱动的自主科学实验闭环,做支撑它的网络与数据传输基础设施——GPU-to-GPU 传输、science-aware 自适应路由、可靠性与韧性、跨机构 workflow 协调,先在合作方已有的网络 digital twin 上做原型与验证。不做具体领域的科学 AI 模型(蛋白质/材料等),那是上层的事。
 
-隶属美国能源部 Genesis Mission 计划下的 SciNet 项目,当前是六个月 Phase 1 加速阶段,产出 proof of concept 与 demo,支撑 12 月的 Phase 2 proposal。**处于方向收敛期**:digital twin 的具体形态、本组负责的模块、第一个可测的系统问题均未确定(见 `docs/current_experiment_plan.md` 的待办与决策)。背景见 `resources/conversation_20260727.md`。
+隶属美国能源部 Genesis Mission 计划下的 SciNet 项目,当前是六个月 Phase 1 加速阶段,产出 proof of concept 与 demo,支撑 12 月的 Phase 2 proposal。**处于方向收敛期**:digital twin 的具体形态、本组负责的模块、第一个可测的系统问题均未确定(见 `docs/current_experiment_plan.md` 的待办与决策)。背景见 `resources/meetings/20260727.md`。
 
 核心设计理念是把记录系统做成**可复现、可迁移、记忆持久化**的:实验结果都被结构化记录,换机器靠 `git clone` 恢复,项目结构靠 tag 前缀保持稳定而非随主题增删文件夹。
 
@@ -48,9 +48,12 @@
 │   └── conda/                 #   conda 路线:environment.yml
 ├── resources/                 # 外部资料(论文/文档/笔记),人工维护、agent 只读不写
 │   ├── README.md              #   纪律 + 大件出处清单                                            [git]
-│   ├── *.md / *.txt / *.bib   #   小文本                                                         [git]
+│   ├── meetings/              #   会议记录 {YYYYMMDD}[_{tag}].md(+ 原始会议材料)                 [git]
+│   ├── notes/                 #   笔记与资料整理 {YYYYMMDD}_{tag}.md(邮件/slides 解读/设计讨论)    [git]
+│   ├── slides/                #   外部 slides(pptx 等)                              [本地,不进 git]
 │   ├── imgs/                  #   md 引用的图片,{YYYYMMDD}_{tag}.{ext}(pre-commit 自动抽取)        [git]
-│   └── *.pdf / office / 压缩包 #   大件                                              [本地,不进 git]
+│   └── other/                 #   杂项:链接清单、原型/可视化 html 等                              [git]
+│                              #   (各子目录内 pdf / office / 压缩包等大件同样不进 git)
 ├── weekly_report/             # 组会周报(人机协作:AI 起草、我定稿)
 │   ├── _report_template.md    #   周报模板(用法/协作方式见其抬头)                              [git]
 │   └── {YYYYMMDD}.md          #   一次组会一份,文件名 = 组会日期                                [git]
@@ -142,7 +145,7 @@ claude   # 启动 agent,它会先读 CLAUDE.md 恢复项目上下文
 
 上面几层都是**本项目产出的记忆**,另有两个方向的补充:
 
-- **`resources/`** —— 外部输入的原材料(论文、外部文档、摘来的笔记),由我人工维护、agent 只读不写(纪律与大件出处清单见 `resources/README.md`)。
+- **`resources/`** —— 外部输入的原材料(论文、外部文档、摘来的笔记),按类别分子目录(`meetings/` / `notes/` / `slides/` / `imgs/` / `other/`),由我人工维护、agent 只读不写(纪律与大件出处清单见 `resources/README.md`)。
 - **`weekly_report/`** —— 对外汇报的快照,一次组会一份 `{YYYYMMDD}.md`。**人机协作**:AI 依据 `EXPERIMENTS.md` / `runs/` / 最新 findings 卷起草客观结果(每条带证据链接),我补判断与下周打算后定稿。它是记忆的**出口**而非记忆本身——结论仍以最新 `docs/findings_{YYYYMMDD}.md` 为准,周报只引用不复制。模板见 `weekly_report/_report_template.md`。
 
 **谁能写哪一层**(完整版见 `CLAUDE.md` §3 的人工独占清单):`docs/knowledge_*.md`、`docs/ideas.md`(含 `archive/ideas.md`)、`docs/current_log.md`、`resources/` 是**我的思考缓冲区,agent 只读不写**——它可以读、可以引用、可以在对话里指出问题并提议改法,但不动手写、不新建、不整理。agent 可写的是 `EXPERIMENTS.md`(入口自动)、已有的 `docs/findings_*.md`、两个 `_index_*.md`、`docs/current_experiment_plan.md`、`docs/archive/` 的计划稿与流水账归档、以及周报初稿;findings 新卷只由我创建。

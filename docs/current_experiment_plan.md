@@ -19,7 +19,7 @@
 ## 输入与证据优先级
 
 1. **SENSE-O Intent API 2.0.4 官方 OpenAPI/Swagger、官方文档及官方示例**：用于确定 API 的真实字段、类型、必填性、语义和返回状态；不以二手文章替代。
-2. [`resources/How to Describes a Workflow.pptx`](../resources/How%20to%20Describes%20a%20Workflow.pptx)：本组 workflow/science-SLA 模型的权威输入。
+2. [`resources/slides/How to Describes a Workflow.pptx`](../resources/slides/How%20to%20Describes%20a%20Workflow.pptx)：本组 workflow/science-SLA 模型的权威输入。
 3. `/Users/lxzhong/Documents/GitHub/paper_reader/knowledge/20260820_wfcommons.md`：补充设计理由和字段细节；与 PPT 不一致时以 PPT 为准。
 
 已确认的权威解释口径：bandwidth/latency 的**网络能力与观测值**分别属于 platform/execution；面向具体文件的“所需 bandwidth/latency”由文件大小、deadline 和拓扑条件推导，不重复声明为彼此矛盾的独立真值。

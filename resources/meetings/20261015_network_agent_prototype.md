@@ -163,7 +163,7 @@ Linxuan 还提到一篇相关 agent framework 论文，名称转写接近 **Remo
 | 50/100 的多路径例子 | 对应转写中的 megabits，整理为 Mbps；学习部分混乱的 GB/Gbps 数字不作精确转述 |
 | Tuesday 与 Friday | Tuesday 按自我修正及会议日期推算为 2026-10-20；Friday 的具体日期未定 |
 
-相关背景材料：[10 月 13 日 SciNet 会议](20261013_scinet_agent_implementation.md)、[已有框架讨论](../20261013_agentframework.md)、[三阶段 Network Agent 图与说明](../20261014_networkagent.md)。这些链接用于理解前序设计，不替代本次转写。
+相关背景材料：[10 月 13 日 SciNet 会议](20261013_scinet_agent_implementation.md)、[已有框架讨论](../notes/20261013_agentframework.md)、[三阶段 Network Agent 图与说明](../notes/20261014_networkagent.md)。这些链接用于理解前序设计，不替代本次转写。
 
 ## 附录 B 原始自动转写
 

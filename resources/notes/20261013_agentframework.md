@@ -864,3 +864,43 @@ Deep Agents 是 Lang 家族更高层的 **agent harness**：基于 LangChain 的
 **有多个 network、scheduling、telemetry agents，也不意味着必须用 Deep Agents。** 它的子 agent 委派机制，与跨机构常驻 agents 的部署和协调，是不同的需求。
 
 对 SciNet，未来可以把 Deep Agents 用在一个专门的“网络诊断助手”中；当前先把 network agent 的规则和 API 闭环做好。
+
+---
+
+> 当前项目用langchain/graph好，还是直接用开源的codex好？
+
+**当前项目我更建议：用 LangGraph 编排 Network Agent，普通 Python 实现网络规则，LangChain 按需加入。Codex 可以作为诊断节点里的执行引擎。** 这是针对你们当前需求的工程判断。
+
+这里将“直接用开源 Codex”理解为：把 Codex 的 agent harness 嵌入系统，让它读取 telemetry、调用工具并决定下一步。
+
+先澄清一点：**Codex 确实可以承担这种角色。** 它提供上下文管理、工具调用、执行循环和会话能力，可以通过 SDK 或 app-server 集成进自己的应用，并不限于交互式写代码。[OpenAI 官方说明](https://developers.openai.com/blog/codex-as-a-platform)
+
+两者对你们项目的主要区别是：
+
+
+| 当前需求                                  | 我的选择及理由                                         |
+| ------------------------------------- | ----------------------------------------------- |
+| quote → reserve → commit，失败后 rollback | **LangGraph + Python**：明确规定执行顺序、条件和状态转换         |
+| 容量扣减、TTL、并发预留、重复请求处理                  | **独立的 Python 服务和存储**：两种框架都需要你们实现这些语义            |
+| 分析日志，决定查哪个指标、做哪个 probe                | **Codex 或 LangChain agent 都适合**：可以让模型根据工具反馈组织调查 |
+| 比较规则与 AI，验证 AI 带来的收益                  | **LangGraph 更方便组织对照**：保持外层流程一致，只替换某个决策节点        |
+
+
+LangGraph 官方定位就包括在同一张图里混合确定性代码和 LLM 决策，而且可以独立于 LangChain 使用。[LangGraph 文档](https://docs.langchain.com/oss/python/langgraph/overview)
+
+你们尤其需要回答 KK 的问题：**AI 究竟在哪一步增加了价值？** 用明确的外层流程，可以把这个问题落实到具体节点。例如：
+
+```
+检测到 deadline 风险
+  → 调查原因：规则策略 / LLM agent / Codex
+  → 返回诊断、证据和建议
+  → Python 检查方案是否可行
+  → 执行修复或报告 at_risk
+```
+
+这样，Codex 仍然可以自主查询 telemetry、分析日志、选择下一步探测；容量修改和 commitment 状态转换则通过明确的接口执行。若直接把整个流程交给 Codex，你们仍要补上这些接口、事务规则和状态管理。
+
+**如果研究重心收敛成“开放式根因调查”，Codex 会是很值得优先尝试的底座；按现在 planning、runtime、learning 三张图的范围，我会先选 LangGraph。** LangChain 只在需要模型接入和工具调用循环时使用，不必整套引入。[LangChain 文档](https://docs.langchain.com/oss/python/langchain/overview)
+
+具体下一步：先把现有图中的 `diagnose / probe planning` 留成可替换接口，外层按 LangGraph 实现，后续就能接入 Codex，而不用重写网络控制逻辑。
+

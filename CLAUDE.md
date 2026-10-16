@@ -4,7 +4,7 @@
 
 隶属美国能源部 Genesis Mission 计划下的 SciNet 项目(Science-Aware Network Operations for Research Networks),当前是**六个月 Phase 1 加速阶段**,目标是做出 proof of concept 与若干 demo,支撑 12 月的 Phase 2 proposal。
 
-**当前处于方向收敛期**:proposal 仍很 high-level,digital twin 的具体形态、我们组负责的模块、第一个可测的系统问题都**尚未确定**,会随合作方会议在数周内演进。因此现阶段的首要任务不是跑实验,而是把"要解决什么问题"收敛成一个可测的假设。背景见 `resources/conversation_20260727.md`(注:该记录源自语音转写 + AI 整理,人名与推断处已标注,引用前须核对)。
+**当前处于方向收敛期**:proposal 仍很 high-level,digital twin 的具体形态、我们组负责的模块、第一个可测的系统问题都**尚未确定**,会随合作方会议在数周内演进。因此现阶段的首要任务不是跑实验,而是把"要解决什么问题"收敛成一个可测的假设。背景见 `resources/meetings/20260727.md`(注:该记录源自语音转写 + AI 整理,人名与推断处已标注,引用前须核对)。
 
 记录系统的可靠性建立在**结构强制**,而非执行者记忆。项目记忆属于 Git 仓库,不属于任何一台 server。换机器 = `git clone`。
 
@@ -37,7 +37,7 @@
 - `configs/` — 实验配置 yaml。
 - `runs/` — 本地原始数据,**大件不进 git**(仅 `description.txt` / `config.yaml` / `metrics.json` / `env_snapshot.txt` 小文件入库)。
 - `env/` — 外部依赖重建配方;凡 env 中出现 git 之外、复现要依赖的 artifact(包、源码、模型/数据、系统工具,含工具自动拉取的)即同步登记,细则见 `env/README.md`。
-- `resources/` — **外部资料**(论文 PDF、外部文档、摘来的笔记 md),与 `docs/`(本项目产出的记忆)相对,是外部输入的原材料。**默认纯人工维护,agent 只读不写**:可读取并引用其内容,但不主动写入/重命名/整理/删除,需要往里放东西时提议由我来放。**例外:我明确指定允许修改 `resources/` 中的具体文件或范围时,agent 可在该次授权范围内操作;授权不自动延续到其他文件或后续任务。**小文本(md/txt/bib)进 git 随仓库迁移;大件(pdf 等)不进 git,须在 `resources/README.md` 的清单里登记出处,细则见该文件。
+- `resources/` — **外部资料**(论文 PDF、外部文档、摘来的笔记 md),与 `docs/`(本项目产出的记忆)相对,是外部输入的原材料。**子目录按类别划分(新资料放进对应子目录,不在根目录平铺)**:`meetings/`(会议记录,`{YYYYMMDD}[_{tag}].md`,含原始会议材料)、`notes/`(笔记与资料整理 md:邮件、slides 解读、设计讨论等,`{YYYYMMDD}_{tag}.md`)、`slides/`(外部 slides,pptx 等大件不进 git)、`imgs/`(md 引用的图片,见下条)、`other/`(不属上述类别的杂项:链接清单、原型/可视化 html 等);根目录只放 `README.md`。**默认纯人工维护,agent 只读不写**:可读取并引用其内容,但不主动写入/重命名/整理/删除,需要往里放东西时提议由我来放。**例外:我明确指定允许修改 `resources/` 中的具体文件或范围时,agent 可在该次授权范围内操作;授权不自动延续到其他文件或后续任务。**小文本(md/txt/bib)进 git 随仓库迁移;大件(pdf 等)不进 git,须在 `resources/README.md` 的清单里登记出处,细则见该文件。
 - **md 图片规则(每次 commit 前结构强制)**:md 中的图片一律用**地址引用**(`![](相对路径)`),不得内嵌 base64(`data:image/...;base64,<巨长字符串>`)。图片统一放 `resources/imgs/`,命名 `{YYYYMMDD}_{tag}.{ext}`(日期与 tag 取自所在 md 的文件名;无 tag 用所在目录名,无日期用当天;重名递增 `_2`、`_3`,内容相同则复用)。由版本化 pre-commit hook(`scripts/git-hooks/pre-commit` → `scripts/extract_md_images.py`)在**每次 commit 前**(含入口脚本的自动 commit)检查暂存的 md,自动抽出 base64 图片、改写为相对路径并一并暂存;抽取失败即阻断提交。hook 经 `bash env/setup.sh` 激活(`core.hooksPath`),**新 clone 后须先跑一次**。手动全量检查:`python3 scripts/extract_md_images.py --all`。本规则是对 `resources/` 只读纪律的**常设授权例外**:仅限往 `resources/imgs/` 写图、把 md 中的 base64 图片改写为引用,不得借此改动其他内容。
 - `weekly_report/` — **组会周报**,一次组会一个 md,文件名 `{YYYYMMDD}.md`(组会当天日期,排序即时间顺序);模板 `_report_template.md`。**人机协作**(区别于下面几处的人工独占):**AI 起草**——依据 `EXPERIMENTS.md` / `runs/*/metrics.json` / 最新一卷 `docs/findings_{YYYYMMDD}.md` 汇总本周客观结果,每条结论带证据链接,口径沿用 §7(观察与解释分开、推测须标注、负结果照实写);**我定稿**——补判断、提问与下周打算。周报是汇报快照而非记忆本身,结论最终沉淀进最新 findings 卷,周报只引用不复制。
 
@@ -49,7 +49,7 @@
 2. `docs/current_experiment_plan.md` —— 末尾「实验历史」看历次实验脉络,顶部看当前实验在做什么。
 3. `docs/_index_findings.md` —— 从目录定位相关 `findings_{YYYYMMDD}.md` 卷中的已确立结论。
 4. `EXPERIMENTS.md` 最近若干行。
-5. (方向收敛期额外)`resources/conversation_20260727.md` —— 项目背景问答:项目定位、Genesis Mission 与 SciNet 是什么、digital twin 指什么、候选研究方向。**是背景材料不是结论**:其中含语音转写误识别与 AI 推断,标注了置信度的地方须回原始出处核对。
+5. (方向收敛期额外)`resources/meetings/20260727.md` —— 项目背景问答:项目定位、Genesis Mission 与 SciNet 是什么、digital twin 指什么、候选研究方向。**是背景材料不是结论**:其中含语音转写误识别与 AI 推断,标注了置信度的地方须回原始出处核对。
 
 ## 5. Tag 命名约定
 

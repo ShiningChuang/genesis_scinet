@@ -9,7 +9,7 @@
 1. **Agent 之间的消息类型要和 graph 同时锁定。** slides 6、8、17–20 已经定义了 TransferRequest、QuoteRequest/Response、hold_id、Commitment + EndpointBinding、repaired/at_risk、ServiceIntent、CapacitySample、ServiceState。它们决定了 graph 的输入输出，也决定了 state 里大部分字段的类型。
 2. **要先说清楚哪些数据不放进 state。** capacity ledger、commitment/hold 表、circuit pool、校准模型是长期保存、所有请求共用的数据，不该放在某次执行的 state 里，否则并发预扣容量很难保证正确。这也和 slide 13 一致："The LLM never writes the ledger"。
 
-下面是按 [Agent Orchestration.pptx](../resources/slides/Agent%20Orchestration.pptx) 整理的 network agent graph 设计。
+下面是按 [Agent Orchestration.pptx](../slides/Agent%20Orchestration.pptx) 整理的 network agent graph 设计。
 
 ---
 
@@ -36,9 +36,9 @@ slide 12 把 network agent 分成 Planning、Runtime、Learning 三个阶段。�
 
 图 A 只有两条分支：quote 只读、不调用 SENSE；hold/commit/modify/release 都会修改状态，共用一套骨架，各指令的差别放在节点内部处理。
 
-![图 A：Protocol Graph。左侧是 quote 的只读报价流程；右侧是修改状态的共同流程，并展开 SENSE 成功与失败分支。](imgs/20261014_networkagent_protocol_graph_a.png)
+![图 A：Protocol Graph。左侧是 quote 的只读报价流程；右侧是修改状态的共同流程，并展开 SENSE 成功与失败分支。](../imgs/20261014_networkagent_protocol_graph_a.png)
 
-[打开交互流程图（HTML）](../src/network_agent/protocol_graph_a.html)：选择 quote、hold、commit、modify 或 release，可单独查看该指令的实际路径。
+[打开交互流程图（HTML）](../other/network_agent/protocol_graph_a.html)：选择 quote、hold、commit、modify 或 release，可单独查看该指令的实际路径。
 
 - **从上往下读**：左侧 quote 报价后结束；右侧修改类指令在调用 SENSE 后，按成功或失败确认或回滚账本变更，再回复。
 - **虚线框是按指令执行的可选步骤**：`recheck_capacity` 仅用于 commit / modify（slide 23）；`place_on_circuit` 仅用于 commit，优先复用 warm circuit，否则新建（slide 19）。其余指令跳过相应步骤。
@@ -121,9 +121,9 @@ validate 失败 → respond（错误及原因）→ END
 
 ## 3. 图 B：Runtime Graph（slide 12 的 R1–R3，即 slide 25 的 ① fast loop）
 
-![图 B：Runtime Graph。无偏差时结束；有偏差时扫描受影响承诺，判断是否能补救，再按修复结果上报 repaired 或 at_risk。](imgs/20261014_networkagent_runtime_graph_b.png)
+![图 B：Runtime Graph。无偏差时结束；有偏差时扫描受影响承诺，判断是否能补救，再按修复结果上报 repaired 或 at_risk。](../imgs/20261014_networkagent_runtime_graph_b.png)
 
-[打开图 B / 图 C 的 HTML 版](../src/network_agent/runtime_learning_graphs.html)：图 B 可以选择“无偏差”“修复成功”“修复失败”或“来不及补救”，单独查看对应路径。
+[打开图 B 的 HTML 版](../other/network_agent/runtime_graph_b.html)：图 B 可以选择“无偏差”“修复成功”“修复失败”或“来不及补救”，单独查看对应路径。
 
 图中的 `repaired` / `at_risk` 框用于标明上报结果类型，不是新增的执行节点；两者均由 `emit_reports` 发出。
 
@@ -135,9 +135,9 @@ validate 失败 → respond（错误及原因）→ END
 
 ## 4. 图 C：Learning Graph（slide 20 的 L1–L3，即 ③ long loop）
 
-![图 C：Learning Graph。运行结束后关联传输记录与承诺，校准实际可达速率、分析原因，再制定和应用资源调整。](imgs/20261014_networkagent_learning_graph_c.png)
+![图 C：Learning Graph。运行结束后关联传输记录与承诺，校准实际可达速率、分析原因，再制定和应用资源调整。](../imgs/20261014_networkagent_learning_graph_c.png)
 
-[打开图 B / 图 C 的 HTML 版](../src/network_agent/runtime_learning_graphs.html)。图 C 从上往下依次展开 L1 记录关联、L2 校准与归因、L3 制定和应用调整；◇ 表示第一版使用规则实现的可替换 policy。
+[打开图 C 的 HTML 版](../other/network_agent/learning_graph_c.html)。图 C 从上往下依次展开 L1 记录关联、L2 校准与归因、L3 制定和应用调整；◇ 表示第一版使用规则实现的可替换 policy。
 
 **ledger 刷新策略不做成图。** slide 23 的三种刷新动作（推进时间窗、重采旧时段、事件触发复查）先用一个定时调用的普通函数实现；以后要换策略时，再考虑升级成图。
 
@@ -297,7 +297,7 @@ class NetAgentContext:  # 用 LangGraph runtime context 注入，不是 state
 ## 8. 两个附带问题
 
 - **slides 里同一个上报事件有两个名字。** slide 3/6 叫 "runtime schedule failure"，slide 12/18/20/25 叫 `at_risk`。定 schema 之前要统一，我上面暂时用的是 `at_risk`。
-- **计划稿还停在 Exp2。** [current_experiment_plan.md](../docs/current_experiment_plan.md) 写的仍是 Exp2（SENSE intent harmonize）。转向 network agent 实现等于换实验，需要你来决定。本轮我没有改任何文件。
+- **计划稿还停在 Exp2。** [current_experiment_plan.md](../../docs/current_experiment_plan.md) 写的仍是 Exp2（SENSE intent harmonize）。转向 network agent 实现等于换实验，需要你来决定。本轮我没有改任何文件。
 
 **建议的下一步：** graph 一旦确认，先把第 5 节和第 8 节提到的消息类型写成 pydantic schema 放进 `src/lib`；然后用 Mininet 或 mock 的 SenseAdapter，加上 1000genome workflow 里的跨站点传输，跑通图 A 的 quote → hold → commit 规则版闭环。
 
