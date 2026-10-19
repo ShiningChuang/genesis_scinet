@@ -11,8 +11,9 @@ resources/meetings/20261015_network_agent_prototype.md(与 KK 的修订)。
     schemas.py     agent 间消息(TransferRequest、QuoteRequest/Response、Offer …)
     topology.py    站点、链路、路径
     ledger.py      逐链路、逐时间槽的容量账本:available = observed − own
-    sense/         SenseAdapter 接口 + mock(SENSE-O / NDT / Mininet 可替换)
-    telemetry/     Telemetry 接口 + mock
+    sim.py         模拟网络(digital twin 的替身:他人占用、链路中断)
+    telemetry.py   TelemetrySource 接口 + mock
+    sense.py       SenseAdapter 接口 + mock(SENSE-O / NDT / Mininet 可替换)
     graphs/        protocol(图 A)、runtime(图 B)、learning(图 C)
 
 约定:

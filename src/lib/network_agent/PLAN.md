@@ -24,8 +24,9 @@
 |---|---|---|---|---|---|
 | 0 | 环境与骨架:venv、依赖、包结构、参数加载 | `config.py`、`tests/test_step0_smoke.py`、`env/pip/` | 否 | 10/20 前 | ✅ 2026-10-17 |
 | 1 | 消息 schema(仅 planning 闭环):TransferRequest、QuoteRequest/Response、Offer、Reserve/Commit 请求与回执、Commitment、EndpointBinding、ErrorResponse。其余消息在首次用到的步骤再加 | `schemas.py`、`tests/test_step1_schemas.py` | 否 | 10/20 前 | ✅ 2026-10-18 |
-| 2 | 拓扑与容量账本:站点/链路/路径;逐链路逐时间槽 observed/own/available;pending/confirm/rollback 事务 | `topology.py`、`ledger.py`、demo 拓扑(APS→ANL→ESnet→ORNL) | 否 | 10/20 前 | ⏳ 下一步 |
-| 3 | 外部接口与 mock:SenseAdapter(propagate/commit/modify/cancel,可注入失败)、Telemetry(容量采样、链路状态);schema 补 ServiceIntent、CapacitySample、ServiceState | `sense/`、`telemetry/` | 否 | 10/20 前 | |
+| 2 | 拓扑与容量账本:站点/链路/路径;逐链路逐时间槽 observed/own/available;pending/confirm/rollback 事务 | `topology.py`、`ledger.py`、`tests/helpers.py`(demo 拓扑 APS→ANL→ESnet→ORNL + 虚构的第二条 transit 路径)、`tests/test_step2_topology_ledger.py`;config 加 `max_paths` | 否 | 10/20 前 | ✅ 2026-10-18 |
+| 3a | Telemetry 一侧:模拟网络(他人占用、链路中断)、TelemetrySource 接口与 mock、LinkSample schema;账本改为 `apply(samples)` 写入 observed,观测值带过期时间 | `sim.py`、`telemetry.py`、`tests/test_step3a_telemetry.py` | 否 | 10/20 前 | ✅ 2026-10-19 |
+| 3b | SENSE 一侧:SenseAdapter 接口(propagate/commit/modify/cancel)与 mock(读写同一模拟网络,可注入失败);schema 补 ServiceIntent、ServiceState | `sense.py` | 否 | 10/20 前(5a 前) | ⏳ 下一步 |
 | 4 | 图 A quote 分支:validate_bundle → refresh_if_stale → find_placements → estimate_finish → respond;复现 slide 7 的 a1/a2/a3 | `graphs/protocol.py` | 是 | 10/20 前 | |
 | 5a | 图 A reserve/commit:validate_op → recheck → place_on_circuit → compile_intent → ledger_pending → sense_call → confirm/rollback | 同上 | 是 | 10/20 前 | |
 | 5b | modify/release、TTL 到期回收、重复请求幂等 | 同上 | 是 | 可延后 | |
@@ -39,5 +40,6 @@
 ## 待决
 
 - slide 7 的 a1 算术疑似笔误:50 TB 以 40 Gbps 自 09:00 起传需 10000 s,应在 11:47 完成,slide 写 13:47(a2 = 13:07、a3 = 14:34 均吻合)。第 4 步复现时按算术结果。
-
+- ~~observed 口径~~ 已在 3a 定为接口契约:observed = 不算我们自己预订时的可用容量(`schemas.LinkSample`)。接真实 SENSE / telemetry 时,由其 adapter 负责换算(例如 SENSE `maxReservableGbps` 若已扣掉我们的预留,需加回)。
+- 路径枚举目前穷举所有无环路径,只适合 demo 规模;拓扑变大后换 Yen k 最短路径。
 - 第 6 步 demo 走入口时需要一个实验 tag,届时 `docs/current_experiment_plan.md` 需从 Exp2 切换(换实验由用户决定)。

@@ -1,7 +1,7 @@
 """Scheduling agent ↔ network agent 的消息(slides 6、7、19)。
 
-本文件只含 planning 闭环 quote → reserve → commit 用到的消息;其余消息在第一次用到的那一步再加
-(ServiceIntent / CapacitySample → 第 3 步,modify / release → 第 5b 步,
+本文件含 planning 闭环 quote → reserve → commit 用到的消息,以及 telemetry 样本(第 3a 步);其余消息在第一次用到的那一步再加
+(ServiceIntent / ServiceState → 第 3b 步,modify / release → 第 5b 步,
 repaired / at_risk → 第 7 步,TransferRecord → 第 9 步)。
 
 所有消息都是不可变的 pydantic 模型,未知字段一律拒绝:agent 之间走 JSON,
@@ -12,7 +12,9 @@ repaired / at_risk → 第 7 步,TransferRecord → 第 9 步)。
 from datetime import datetime
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
+from pydantic import (
+    AwareDatetime, BaseModel, ConfigDict, NonNegativeFloat, NonNegativeInt, PositiveFloat, PositiveInt, model_validator,
+)
 
 
 class Msg(BaseModel):
@@ -220,3 +222,35 @@ class ErrorResponse(Msg):
     request_id: str
     code: Literal["invalid_request", "not_found", "expired", "conflict", "sense_failure"]
     detail: str
+
+
+# ── telemetry → network agent ─────────────────────────────────────────────
+
+class LinkSample(Msg):
+    """telemetry 对一条有向链路在 [start, end) 内的观测(slide 10:network agent 订阅 link state 与 capacity)。
+
+    ``available_gbps`` 的口径:**不算我们自己的预订时**可用的容量(= 容量 − 外部流量/他人预留)。
+    账本据此计算 available = observed − own;若数据源给的数已扣掉我们自己的预订,
+    由该数据源的 adapter 负责加回,否则会重复扣减。
+
+    未来时段的值是数据源"现在相信"的情况(如他人已登记的预留),不是流量预测。
+    """
+
+    link_id: str                      # 有向链路 id,如 "L2:esnet-chi>esnet-atl"
+    start: AwareDatetime
+    end: AwareDatetime
+    up: bool
+    available_gbps: NonNegativeFloat
+    sampled_at: AwareDatetime
+    valid_until: AwareDatetime        # 过了这个时间,账本里对应的值视为过期,需要刷新
+    source: str                       # "telemetry" | "sense" | "mock" | ...
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        if self.start >= self.end:
+            raise ValueError("start must be before end")
+        if self.valid_until < self.sampled_at:
+            raise ValueError("valid_until must not precede sampled_at")
+        if not self.up and self.available_gbps > 0:
+            raise ValueError("a down link has no available capacity")
+        return self

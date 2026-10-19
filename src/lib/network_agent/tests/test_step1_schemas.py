@@ -3,7 +3,7 @@
 用例取 slide 7:T1 = 50 TB,窗口 09:00–15:00;offer a2 = 12:00 起 100 Gbps,13:07 完成。
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -12,12 +12,7 @@ from src.lib.network_agent.schemas import (
     CommitAck, Commitment, EndpointBinding, Offer, QuoteRequest, QuoteResponse,
     RateSegment, RejectReason, ReserveRequest, TimeWindow, TransferQuote, TransferRequest,
 )
-
-UTC = timezone.utc
-
-
-def t(hh, mm=0):
-    return datetime(2026, 10, 20, hh, mm, tzinfo=UTC)
+from src.lib.network_agent.tests.helpers import t
 
 
 def t1(**over):

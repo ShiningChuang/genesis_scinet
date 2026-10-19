@@ -3,12 +3,12 @@
 from typing import TypedDict
 
 import pytest
+import yaml
 from langgraph.graph import END, START, StateGraph
 from pydantic import ValidationError
 
 from src.lib.network_agent.config import load_config
-
-CFG = {"slot_seconds": 900, "horizon_seconds": 86400, "reserve_ttl_seconds": 60}
+from src.lib.network_agent.tests.helpers import CFG
 
 
 def test_config_from_dict_and_section():
@@ -18,7 +18,7 @@ def test_config_from_dict_and_section():
 
 def test_config_from_yaml(tmp_path):
     p = tmp_path / "c.yaml"
-    p.write_text("network_agent:\n  slot_seconds: 900\n  horizon_seconds: 86400\n  reserve_ttl_seconds: 60\n")
+    p.write_text(yaml.safe_dump({"network_agent": CFG}))
     assert load_config(p).horizon_seconds == 86400
 
 
@@ -26,6 +26,7 @@ def test_config_from_yaml(tmp_path):
     {k: v for k, v in CFG.items() if k != "slot_seconds"},  # 漏写
     {**CFG, "slot_secs": 900},                               # 拼错
     {**CFG, "slot_seconds": 0},                              # 非正
+    {**CFG, "horizon_seconds": 1000},                        # 不是 slot 的整数倍
 ])
 def test_config_rejects_bad_input(bad):
     with pytest.raises(ValidationError):
