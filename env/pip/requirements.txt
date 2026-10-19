@@ -2,3 +2,8 @@
 # 装完一次后生成锁文件:.venv/bin/pip freeze > env/pip/pip-freeze.lock
 
 pyyaml>=6.0        # scripts/run_experiment.py 读 config 用(框架唯一硬依赖)
+
+# src/lib/network_agent
+langgraph>=1.2     # 执行图(state / node / edge)
+pydantic>=2.14     # agent 间消息与 config 的类型校验
+pytest>=9.1        # src/lib/network_agent/tests
