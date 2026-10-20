@@ -1,7 +1,7 @@
 """Scheduling agent ↔ network agent 的消息(slides 6、7、19)。
 
-本文件含 planning 闭环 quote → reserve → commit 用到的消息,以及 telemetry 样本(第 3a 步);其余消息在第一次用到的那一步再加
-(ServiceIntent / ServiceState → 第 3b 步,modify / release → 第 5b 步,
+本文件含 planning 闭环 quote → reserve → commit 用到的消息、telemetry 样本(第 3a 步)和 SENSE 消息(第 3b 步);其余消息在第一次用到的那一步再加
+(modify / release → 第 5b 步,
 repaired / at_risk → 第 7 步,TransferRecord → 第 9 步)。
 
 所有消息都是不可变的 pydantic 模型,未知字段一律拒绝:agent 之间走 JSON,
@@ -229,9 +229,9 @@ class ErrorResponse(Msg):
 class LinkSample(Msg):
     """telemetry 对一条有向链路在 [start, end) 内的观测(slide 10:network agent 订阅 link state 与 capacity)。
 
-    ``available_gbps`` 的口径:**不算我们自己的预订时**可用的容量(= 容量 − 外部流量/他人预留)。
-    账本据此计算 available = observed − own;若数据源给的数已扣掉我们自己的预订,
-    由该数据源的 adapter 负责加回,否则会重复扣减。
+    ``available_gbps`` 的口径:**不算我们自己的预订时**可用的容量(= 容量 − 外部流量/他人预留)。也就是observe。
+    账本据此计算 available = observed − own;
+    若数据源给的数已扣掉我们自己的预订, 由该数据源的 adapter 负责加回,否则会重复扣减。
 
     未来时段的值是数据源"现在相信"的情况(如他人已登记的预留),不是流量预测。
     """
@@ -254,3 +254,51 @@ class LinkSample(Msg):
         if not self.up and self.available_gbps > 0:
             raise ValueError("a down link has no available capacity")
         return self
+
+
+# ── network agent ↔ SENSE-O / NDT(slide 8)─────────────────────────────────
+# 字段取自 SENSE-O Intent API 2.0.4 的 DNC(Exp2 调研:
+# runs/20260826_181552_probe_sense_intent_harmonize_847b6e8/),做了两处简化:
+# 一条连接、恰好两个端点;带宽用 int Mbps(SENSE 要求 Mbps 字符串,由真实 adapter 转换)。
+
+QosClass = Literal["guaranteedCapped", "softCapped", "anyAvailable", "bestEffort"]
+
+
+class Terminal(Msg):
+    uri: str                                          # SENSE 端点 URI,如 "urn:ogf:network:anl.gov:..."
+    vlan_tag: str = "any"                             # "any":由 SENSE 分配
+
+
+class ServiceIntent(Msg):
+    """一个 SENSE service instance 的请求:一段时间内,两端点之间一条恒定带宽的连接。
+
+    一个 intent 只有一个带宽值,对应 slide 24 的 circuit;多段速率的 commitment 如何
+    落到 circuit 上,是第 5a 步 place_on_circuit / compile_intent 的事。
+    """
+
+    alias: str                                        # 我们起的名字,便于在 SENSE 侧追溯
+    terminals: list[Terminal]
+    capacity_mbps: PositiveInt                        # bandwidth.capacity
+    qos_class: QosClass                               # bandwidth.qos_class
+    start: AwareDatetime                              # schedule.start
+    end: AwareDatetime                                # schedule.end
+    path_inclusion: list[str] = []                    # path_tprofile.inclusion_list;此处为有向链路 id,
+                                                      # 真实 adapter 需映射成 SENSE Path URI
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        if len(self.terminals) != 2 or self.terminals[0].uri == self.terminals[1].uri:
+            raise ValueError("need exactly two distinct terminals")
+        if self.start >= self.end:
+            raise ValueError("start must be before end")
+        return self
+
+
+class ServiceState(Msg):
+    """SENSE 返回的实例状态。两阶段:propagate → reserved(资源已留、未下发配置),commit → committed。"""
+
+    instance_id: str                                  # SENSE 的 siUUID
+    alias: str
+    state: Literal["reserved", "committed", "cancelled"]
+    vlan: int | None                                  # SENSE 分配的 VLAN;EndpointBinding 要用
+    changed_at: AwareDatetime

@@ -26,10 +26,10 @@
 | 1 | 消息 schema(仅 planning 闭环):TransferRequest、QuoteRequest/Response、Offer、Reserve/Commit 请求与回执、Commitment、EndpointBinding、ErrorResponse。其余消息在首次用到的步骤再加 | `schemas.py`、`tests/test_step1_schemas.py` | 否 | 10/20 前 | ✅ 2026-10-18 |
 | 2 | 拓扑与容量账本:站点/链路/路径;逐链路逐时间槽 observed/own/available;pending/confirm/rollback 事务 | `topology.py`、`ledger.py`、`tests/helpers.py`(demo 拓扑 APS→ANL→ESnet→ORNL + 虚构的第二条 transit 路径)、`tests/test_step2_topology_ledger.py`;config 加 `max_paths` | 否 | 10/20 前 | ✅ 2026-10-18 |
 | 3a | Telemetry 一侧:模拟网络(他人占用、链路中断)、TelemetrySource 接口与 mock、LinkSample schema;账本改为 `apply(samples)` 写入 observed,观测值带过期时间 | `sim.py`、`telemetry.py`、`tests/test_step3a_telemetry.py` | 否 | 10/20 前 | ✅ 2026-10-19 |
-| 3b | SENSE 一侧:SenseAdapter 接口(propagate/commit/modify/cancel)与 mock(读写同一模拟网络,可注入失败);schema 补 ServiceIntent、ServiceState | `sense.py` | 否 | 10/20 前(5a 前) | ⏳ 下一步 |
-| 4 | 图 A quote 分支:validate_bundle → refresh_if_stale → find_placements → estimate_finish → respond;复现 slide 7 的 a1/a2/a3 | `graphs/protocol.py` | 是 | 10/20 前 | |
+| 3b | SENSE 一侧:SenseAdapter 接口(两阶段 propagate → commit,cancel;modify 移到 5b)与 mock(对照模拟网络准入、VLAN 分配、可注入失败);模拟网络分开存"他人占用"与"我们的预留";schema 补 Terminal、ServiceIntent、ServiceState | `sense.py`、`sim.py`、`tests/test_step3b_sense.py` | 否 | 10/20 前 | ✅ 2026-10-19 |
+| 4 | 图 A quote 分支:validate_bundle → refresh_if_stale → find_placements → estimate_finish → respond;复现 slide 7 的 a1/a2/a3 | `graphs/protocol.py` | 是 | 10/20 前 | ⏳ 下一步 |
 | 5a | 图 A reserve/commit:validate_op → recheck → place_on_circuit → compile_intent → ledger_pending → sense_call → confirm/rollback | 同上 | 是 | 10/20 前 | |
-| 5b | modify/release、TTL 到期回收、重复请求幂等 | 同上 | 是 | 可延后 | |
+| 5b | modify/release(含 SENSE modify)、TTL 到期回收、重复请求幂等 | 同上 | 是 | 可延后 | |
 | 6 | 端到端 demo:mock scheduling agent 驱动 quote → 选 offer → reserve → commit,两个 workflow 争用,打印 ledger 表(走 `run_experiment.py`) | `configs/` + `src/experiments/{tag}/` | 是 | 10/20 展示 | |
 | 7 | 图 B Runtime:区分故障/拥塞/渐慢 → 逐跳扫描 → triage → 本地修复(复用第 5 步指令)→ repaired / at_risk | `graphs/runtime.py` | 是 | 之后 | |
 | 8 | 多路径增容:找额外路径、拆分速率、增补方案;transport 侧留接口 | `multipath.py` | 是 | 之后 | |
@@ -41,5 +41,8 @@
 
 - slide 7 的 a1 算术疑似笔误:50 TB 以 40 Gbps 自 09:00 起传需 10000 s,应在 11:47 完成,slide 写 13:47(a2 = 13:07、a3 = 14:34 均吻合)。第 4 步复现时按算术结果。
 - ~~observed 口径~~ 已在 3a 定为接口契约:observed = 不算我们自己预订时的可用容量(`schemas.LinkSample`)。接真实 SENSE / telemetry 时,由其 adapter 负责换算(例如 SENSE `maxReservableGbps` 若已扣掉我们的预留,需加回)。
+- SENSE 的 `path_tprofile.inclusion_list` 语义待确认(Exp2 遗留问题):mock 把它当作强制路径;若真实 SENSE 只当偏好、实际走了别的路径,逐链路账本会与实际不符。
+- 一个 ServiceIntent 只有一个带宽值;多段速率的 commitment 怎么落到 intent/circuit 上(拆成多个 intent、取最大值,或复用 warm circuit),在 5a 的 place_on_circuit / compile_intent 决定。
+- mock SENSE 的 VLAN 池是全局一个,真实情况是每个端点各有可用 VLAN,两端需同时空闲。
 - 路径枚举目前穷举所有无环路径,只适合 demo 规模;拓扑变大后换 Yen k 最短路径。
 - 第 6 步 demo 走入口时需要一个实验 tag,届时 `docs/current_experiment_plan.md` 需从 Exp2 切换(换实验由用户决定)。
