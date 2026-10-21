@@ -7,11 +7,7 @@ from src.lib.network_agent.config import load_config
 from src.lib.network_agent.ledger import CapacityLedger, InsufficientCapacity, OutOfHorizon
 from src.lib.network_agent.schemas import LinkSample, RateSegment
 from src.lib.network_agent.topology import Topology
-from src.lib.network_agent.tests.helpers import CFG, TOPO, t
-
-MAIN = ("L1:anl-dtn01>esnet-chi", "L2:esnet-chi>esnet-atl", "L3:esnet-atl>ornl-esgf")
-ALT = ("L1:anl-dtn01>esnet-chi", "L4:esnet-chi>esnet-nash", "L5:esnet-nash>esnet-atl", "L3:esnet-atl>ornl-esgf")
-L2 = MAIN[1]
+from src.lib.network_agent.tests.helpers import ALT, CFG, DST, L1, L2, L4, MAIN, SRC, TOPO, t
 
 
 @pytest.fixture
@@ -31,22 +27,22 @@ def seg(h0, m0, h1, m1, gbps):
 # ── 拓扑 ──────────────────────────────────────────────────────────────────
 
 def test_paths_shortest_first(topo):
-    assert topo.paths("anl-dtn01", "ornl-esgf", k=3) == [MAIN, ALT]
-    assert topo.paths("anl-dtn01", "ornl-esgf", k=1) == [MAIN]
+    assert topo.paths(SRC, DST, k=3) == [MAIN, ALT]
+    assert topo.paths(SRC, DST, k=1) == [MAIN]
 
 
 def test_links_are_directed(topo):
-    back = topo.paths("ornl-esgf", "anl-dtn01", k=1)[0]
-    assert back[0] == "L3:ornl-esgf>esnet-atl"
+    back = topo.paths(DST, SRC, k=1)[0]
+    assert back[0] == "L3:ornl-n01>esnet-chi"
 
 
 def test_unknown_node(topo):
     with pytest.raises(KeyError):
-        topo.paths("anl-dtn01", "nowhere", k=1)
+        topo.paths(SRC, "nowhere", k=1)
 
 
 @pytest.mark.parametrize("bad", [
-    {**TOPO, "links": TOPO["links"] + [{"id": "L9", "a": "anl-dtn01", "b": "mars", "capacity_gbps": 1}]},
+    {**TOPO, "links": TOPO["links"] + [{"id": "L9", "a": SRC, "b": "mars", "capacity_gbps": 1}]},
     {**TOPO, "links": TOPO["links"] + [TOPO["links"][0]]},                     # 重复链路 id
     {**TOPO, "links": [{"id": "L9", "a": "esnet-chi", "b": "esnet-chi", "capacity_gbps": 1}]},
 ])
@@ -98,13 +94,13 @@ def test_slide23_table(ledger):
 
 
 def test_path_available_is_min_with_bottleneck(ledger):
-    assert ledger.path_available(ALT, 0) == (40, "L4:esnet-chi>esnet-nash")
+    assert ledger.path_available(ALT, 0) == (40, L4)
 
 
 def test_shared_link_couples_paths(ledger):
     """按链路记账的意义:MAIN 和 ALT 共用 L1,在 MAIN 上预订会挤占 ALT。"""
     ledger.pending("b1", MAIN, seg(9, 0, 10, 0, 80))
-    assert ledger.path_available(ALT, 0) == (20, "L1:anl-dtn01>esnet-chi")
+    assert ledger.path_available(ALT, 0) == (20, L1)
 
 
 # ── 账本:pending → confirm / rollback / release ──────────────────────────
@@ -143,7 +139,7 @@ def test_insufficient_is_atomic_and_located(ledger):
     """ALT 第二跳 L4 只有 40;要 50 时失败,并指出是 L4、被外部容量限制;L1 上什么都没写。"""
     with pytest.raises(InsufficientCapacity) as e:
         ledger.pending("b1", ALT, seg(9, 0, 9, 30, 50))
-    assert (e.value.link_id, e.value.blocked_by) == ("L4:esnet-chi>esnet-nash", "foreign_traffic")
+    assert (e.value.link_id, e.value.blocked_by) == (L4, "foreign_traffic")
     assert ledger.available(ALT[0], 0) == 100
 
 

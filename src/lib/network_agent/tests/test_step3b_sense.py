@@ -8,10 +8,10 @@ from src.lib.network_agent.sense import MockSense, SenseError
 from src.lib.network_agent.sim import MockNetwork
 from src.lib.network_agent.telemetry import MockTelemetry
 from src.lib.network_agent.topology import Topology
-from src.lib.network_agent.tests.helpers import TOPO, t
+from src.lib.network_agent.tests.helpers import L2, TOPO, t
+from src.lib.network_agent.tests.helpers import MAIN as MAIN_PATH
 
-L2 = "L2:esnet-chi>esnet-atl"
-MAIN = ["L1:anl-dtn01>esnet-chi", L2, "L3:esnet-atl>ornl-esgf"]
+MAIN = list(MAIN_PATH)                        # ServiceIntent.path_inclusion 是 list
 
 
 @pytest.fixture

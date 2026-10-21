@@ -14,6 +14,9 @@ resources/meetings/20261015_network_agent_prototype.md(与 KK 的修订)。
     sim.py         模拟网络(digital twin 的替身:他人占用、链路中断)
     telemetry.py   TelemetrySource 接口 + mock
     sense.py       SenseAdapter 接口 + mock(SENSE-O / NDT / Mininet 可替换)
+    placement.py   报价的放置搜索(slide 7 的三种 offer)
+    estimate.py    RateModel:预计完成时间 p50 / p95(第 9 步校准结果的接入点)
+    context.py     三张图共用的 runtime context(账本、拓扑、外部接口)
     graphs/        protocol(图 A)、runtime(图 B)、learning(图 C)
 
 约定:

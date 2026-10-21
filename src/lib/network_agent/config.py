@@ -8,7 +8,7 @@
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, ConfigDict, PositiveInt, model_validator
+from pydantic import BaseModel, ConfigDict, PositiveFloat, PositiveInt, model_validator
 
 
 class NetAgentConfig(BaseModel):
@@ -18,6 +18,7 @@ class NetAgentConfig(BaseModel):
     horizon_seconds: PositiveInt      # 账本向前看多远
     reserve_ttl_seconds: PositiveInt  # reserve 未 commit 时自动释放的期限(slide 19)
     max_paths: PositiveInt            # 每对端点最多考虑几条候选路径(按跳数从少到多)
+    rate_step_gbps: PositiveFloat     # offer 的速率按此步长取整(slide 7 的 40 / 100 / 20 Gbps 均为 10 的倍数)
 
     @model_validator(mode="after")
     def _whole_slots(self):

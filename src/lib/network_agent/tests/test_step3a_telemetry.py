@@ -9,11 +9,7 @@ from src.lib.network_agent.schemas import LinkSample, RateSegment
 from src.lib.network_agent.sim import MockNetwork
 from src.lib.network_agent.telemetry import MockTelemetry
 from src.lib.network_agent.topology import Topology
-from src.lib.network_agent.tests.helpers import CFG, TOPO, t
-
-L2 = "L2:esnet-chi>esnet-atl"
-L2_BACK = "L2:esnet-atl>esnet-chi"
-MAIN = ("L1:anl-dtn01>esnet-chi", L2, "L3:esnet-atl>ornl-esgf")
+from src.lib.network_agent.tests.helpers import CFG, L2, L2_BACK, MAIN, TOPO, t
 
 
 @pytest.fixture

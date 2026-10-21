@@ -24,11 +24,11 @@
 |---|---|---|---|---|---|
 | 0 | 环境与骨架:venv、依赖、包结构、参数加载 | `config.py`、`tests/test_step0_smoke.py`、`env/pip/` | 否 | 10/20 前 | ✅ 2026-10-17 |
 | 1 | 消息 schema(仅 planning 闭环):TransferRequest、QuoteRequest/Response、Offer、Reserve/Commit 请求与回执、Commitment、EndpointBinding、ErrorResponse。其余消息在首次用到的步骤再加 | `schemas.py`、`tests/test_step1_schemas.py` | 否 | 10/20 前 | ✅ 2026-10-18 |
-| 2 | 拓扑与容量账本:站点/链路/路径;逐链路逐时间槽 observed/own/available;pending/confirm/rollback 事务 | `topology.py`、`ledger.py`、`tests/helpers.py`(demo 拓扑 APS→ANL→ESnet→ORNL + 虚构的第二条 transit 路径)、`tests/test_step2_topology_ledger.py`;config 加 `max_paths` | 否 | 10/20 前 | ✅ 2026-10-18 |
+| 2 | 拓扑与容量账本:站点/链路/路径;逐链路逐时间槽 observed/own/available;pending/confirm/rollback 事务 | `topology.py`、`ledger.py`、`tests/helpers.py`(demo 拓扑:slide 3 物理网络 aps-beamline-8id─anl-n01─anl-n02─esnet-atl─esnet-chi─ornl-n01,外加虚构的 esnet-nash 绕行;2026-10-21 按 slide 3 修订)、`tests/test_step2_topology_ledger.py`;config 加 `max_paths` | 否 | 10/20 前 | ✅ 2026-10-18 |
 | 3a | Telemetry 一侧:模拟网络(他人占用、链路中断)、TelemetrySource 接口与 mock、LinkSample schema;账本改为 `apply(samples)` 写入 observed,观测值带过期时间 | `sim.py`、`telemetry.py`、`tests/test_step3a_telemetry.py` | 否 | 10/20 前 | ✅ 2026-10-19 |
 | 3b | SENSE 一侧:SenseAdapter 接口(两阶段 propagate → commit,cancel;modify 移到 5b)与 mock(对照模拟网络准入、VLAN 分配、可注入失败);模拟网络分开存"他人占用"与"我们的预留";schema 补 Terminal、ServiceIntent、ServiceState | `sense.py`、`sim.py`、`tests/test_step3b_sense.py` | 否 | 10/20 前 | ✅ 2026-10-19 |
-| 4 | 图 A quote 分支:validate_bundle → refresh_if_stale → find_placements → estimate_finish → respond;复现 slide 7 的 a1/a2/a3 | `graphs/protocol.py` | 是 | 10/20 前 | ⏳ 下一步 |
-| 5a | 图 A reserve/commit:validate_op → recheck → place_on_circuit → compile_intent → ledger_pending → sense_call → confirm/rollback | 同上 | 是 | 10/20 前 | |
+| 4 | 图 A quote 分支:validate_bundle → refresh_if_stale → find_placements → estimate_finish → respond;复现 slide 7 的 a1/a2/a3。放置搜索三条规则(earliest_start / max_rate / min_rate);RateModel 接口(第一版 Ideal);共用 context;config 加 `rate_step_gbps` | `graphs/protocol.py`、`placement.py`、`estimate.py`、`context.py`、`tests/test_step4_quote_graph.py` | 是 | 10/20 前 | ✅ 2026-10-20 |
+| 5a | 图 A reserve/commit:route_verb 入口;validate_op → recheck → place_on_circuit → compile_intent → ledger_pending → sense_call → confirm/rollback | 同上 | 是 | 10/20 前 | ⏳ 下一步 |
 | 5b | modify/release(含 SENSE modify)、TTL 到期回收、重复请求幂等 | 同上 | 是 | 可延后 | |
 | 6 | 端到端 demo:mock scheduling agent 驱动 quote → 选 offer → reserve → commit,两个 workflow 争用,打印 ledger 表(走 `run_experiment.py`) | `configs/` + `src/experiments/{tag}/` | 是 | 10/20 展示 | |
 | 7 | 图 B Runtime:区分故障/拥塞/渐慢 → 逐跳扫描 → triage → 本地修复(复用第 5 步指令)→ repaired / at_risk | `graphs/runtime.py` | 是 | 之后 | |
@@ -39,7 +39,10 @@
 
 ## 待决
 
-- slide 7 的 a1 算术疑似笔误:50 TB 以 40 Gbps 自 09:00 起传需 10000 s,应在 11:47 完成,slide 写 13:47(a2 = 13:07、a3 = 14:34 均吻合)。第 4 步复现时按算术结果。
+- slide 7 的 a1 算术疑似笔误:50 TB 以 40 Gbps 自 09:00 起传需 10000 s,应在 11:47 完成,slide 写 13:47(a2 = 13:07、a3 = 14:34 均吻合)。第 4 步已按算术复现(11:46:40),待与 slides 作者确认。
+- 估计完成时间目前用 IdealRateModel(实际速率 = 预留速率)。第 9 步换成校准模型后,若实际慢于预留,p95 会超出预留时段,placement 届时要按 p95 速率定预留时长。
+- 账本的 origin 还不会随时间推进(slide 23 的 advance the frontier);目前靠 horizon 足够长撑着,第 6 步 demo 若跑过一天需要补上。
+- `offer_book` 只增不删:过期 quote 的 offer 何时清理,放到 5b 和 TTL 一起处理。
 - ~~observed 口径~~ 已在 3a 定为接口契约:observed = 不算我们自己预订时的可用容量(`schemas.LinkSample`)。接真实 SENSE / telemetry 时,由其 adapter 负责换算(例如 SENSE `maxReservableGbps` 若已扣掉我们的预留,需加回)。
 - SENSE 的 `path_tprofile.inclusion_list` 语义待确认(Exp2 遗留问题):mock 把它当作强制路径;若真实 SENSE 只当偏好、实际走了别的路径,逐链路账本会与实际不符。
 - 一个 ServiceIntent 只有一个带宽值;多段速率的 commitment 怎么落到 intent/circuit 上(拆成多个 intent、取最大值,或复用 warm circuit),在 5a 的 place_on_circuit / compile_intent 决定。

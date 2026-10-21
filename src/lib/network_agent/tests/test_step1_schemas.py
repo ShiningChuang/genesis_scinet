@@ -12,11 +12,11 @@ from src.lib.network_agent.schemas import (
     CommitAck, Commitment, EndpointBinding, Offer, QuoteRequest, QuoteResponse,
     RateSegment, RejectReason, ReserveRequest, TimeWindow, TransferQuote, TransferRequest,
 )
-from src.lib.network_agent.tests.helpers import t
+from src.lib.network_agent.tests.helpers import DST, SRC, t
 
 
 def t1(**over):
-    base = dict(id="T1", workflow_id="WF-1", priority=1, src="anl-dtn01", dst="ornl-esgf",
+    base = dict(id="T1", workflow_id="WF-1", priority=1, src=SRC, dst=DST,
                 bytes=50 * 10**12, is_estimate=False, divisible=False,
                 window=TimeWindow(earliest_start=t(9), latest_finish=t(15)))
     return TransferRequest(**(base | over))
@@ -54,7 +54,7 @@ def test_commit_ack_roundtrip_json():
     lambda: TimeWindow(earliest_start=t(15), latest_finish=t(9)),                     # 时间窗颠倒
     lambda: TimeWindow(earliest_start=datetime(2026, 10, 20, 9), latest_finish=t(15)),  # 无时区
     lambda: t1(bytes=0),                                                              # 字节数非正
-    lambda: t1(dst="anl-dtn01"),                                                      # src == dst
+    lambda: t1(dst=SRC),                                                              # src == dst
     lambda: t1(color="red"),                                                          # 未知字段
     lambda: QuoteRequest(quote_id="q", bundle=[], mode="best_subset"),                # 空 bundle
     lambda: QuoteRequest(quote_id="q", bundle=[t1(), t1()], mode="best_subset"),      # 重复 transfer id
