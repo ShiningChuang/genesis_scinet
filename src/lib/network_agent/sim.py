@@ -1,11 +1,13 @@
-"""模拟网络:digital twin 的替身,用来在没有 Mininet / VIT / SENSE 时驱动 agent。
+"""Simulated network: a stand-in for the digital twin, used to drive the agent without Mininet / VIT / SENSE.
 
-它持有"真实情况":拓扑、他人占用的容量(按时段)、链路中断(按时段),
-以及我们经 SENSE 预留的容量。mock telemetry(第 3a 步)从这里读,
-mock SENSE(第 3b 步)读写这里,两者看到的是同一个网络。以后换成 Mininet 时,替换的就是这一层。
+It holds the "ground truth": the topology, capacity used by others (per time range), link outages
+(per time range), and the capacity we have reserved through SENSE. The mock telemetry (step 3a)
+reads from it and the mock SENSE (step 3b) reads and writes it, so both see the same network.
+This is the layer that gets replaced when we move to Mininet.
 
-"他人占用"和"我们的预留"分开存:SENSE 做准入检查时两者都要算;
-telemetry 报告时只算他人(口径见 schemas.LinkSample),我们的预留由账本的 own 负责。
+"Foreign traffic" and "our reservations" are stored separately: SENSE admission control has to count
+both, while telemetry reports only foreign traffic (see schemas.LinkSample for the semantics); our
+own reservations are accounted for by the ledger's ``own``.
 """
 
 from dataclasses import dataclass, field
@@ -24,20 +26,20 @@ class Interval:
 @dataclass
 class MockNetwork:
     topology: Topology
-    _foreign: dict[str, list[Interval]] = field(init=False)  # 有向链路 → 他人占用
-    _outages: dict[str, list[Interval]] = field(init=False)  # 有向链路 → 中断时段
-    _ours: dict[str, tuple[Path, Interval]] = field(init=False, default_factory=dict)  # SENSE 实例 → (路径, 预留)
+    _foreign: dict[str, list[Interval]] = field(init=False)  # directed link → foreign usage
+    _outages: dict[str, list[Interval]] = field(init=False)  # directed link → outage periods
+    _ours: dict[str, tuple[Path, Interval]] = field(init=False, default_factory=dict)  # SENSE instance → (path, reservation)
 
     def __post_init__(self):
         self._foreign = {link: [] for link in self.topology.links}
         self._outages = {link: [] for link in self.topology.links}
 
     def add_foreign(self, link_id: str, start: datetime, end: datetime, gbps: float) -> None:
-        """他人在 [start, end) 占用某个方向 gbps 的容量。"""
+        """Others use gbps of capacity in one direction over [start, end)."""
         self._foreign[link_id].append(Interval(start, end, gbps))
 
     def add_outage(self, physical_link_id: str, start: datetime, end: datetime) -> None:
-        """物理链路中断(如光纤被挖断),两个方向同时不可用。"""
+        """A physical link goes down (e.g. a fiber cut): both directions are unavailable at once."""
         directed = [d.id for d in self.topology.links.values() if d.link_id == physical_link_id]
         if not directed:
             raise KeyError(f"unknown link {physical_link_id!r}")
@@ -45,7 +47,7 @@ class MockNetwork:
             self._outages[link].append(Interval(start, end))
 
     def add_ours(self, instance_id: str, path: Path, start: datetime, end: datetime, gbps: float) -> None:
-        """我们经 SENSE 预留的容量(mock SENSE 在 propagate 时调用)。"""
+        """Capacity we reserved through SENSE (called by the mock SENSE on propagate)."""
         self._ours[instance_id] = (path, Interval(start, end, gbps))
 
     def remove_ours(self, instance_id: str) -> None:
@@ -53,10 +55,10 @@ class MockNetwork:
 
     def segments(self, link_id: str, start: datetime, end: datetime,
                  include_ours: bool = False) -> list[tuple[datetime, datetime, bool, float]]:
-        """把 [start, end) 切成"状态不变"的若干段,每段给出 (起, 止, 是否 up, 可用容量)。
+        """Split [start, end) into segments with unchanged state, each as (start, end, is up, available capacity).
 
-        include_ours=False(telemetry 口径):可用容量 = 容量 − 他人占用。
-        include_ours=True (SENSE 准入口径):再减去我们经 SENSE 的预留。
+        include_ours=False (telemetry semantics): available = capacity − foreign usage.
+        include_ours=True  (SENSE admission semantics): additionally subtract our SENSE reservations.
         """
         cap = self.topology.links[link_id].capacity_gbps
         used = list(self._foreign[link_id])
@@ -72,5 +74,5 @@ class MockNetwork:
         return out
 
     def headroom(self, path: Path, start: datetime, end: datetime) -> float:
-        """SENSE 准入用:整条路径在 [start, end) 内任一时刻都还能再给出的最大速率。"""
+        """For SENSE admission: the highest extra rate the whole path can still give at every instant of [start, end)."""
         return min(gbps for link in path for *_, gbps in self.segments(link, start, end, include_ours=True))

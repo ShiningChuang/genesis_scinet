@@ -1,16 +1,19 @@
-"""容量账本:每条有向链路 × 每个时间槽,available = observed − own(slide 23)。
+"""Capacity ledger: per directed link × per time slot, available = observed − own (slide 23).
 
-- observed:不算我们自己的预订时可用的容量(口径见 schemas.LinkSample)。初始为拓扑配置容量,
-  之后由 ``apply()`` 写入 telemetry 样本;每个数都带来源、采样时间和过期时间
-  (slide 12:"every number carries its source")。
-- own:我们自己的预订之和。预订分两种状态:pending(reserve 时预扣)与 confirmed(commit 后)。
-  pending 一写入就计入 own,下一次 quote 立刻能看到(slide 19)。
+- observed: capacity available when our own bookings are not counted (see schemas.LinkSample for the
+  semantics). Initialized to the topology's configured capacity, then overwritten with telemetry
+  samples by ``apply()``; every number carries its source, sample time and expiry
+  (slide 12: "every number carries its source").
+- own: the sum of our own bookings. A booking is in one of two states: pending (held at reserve time)
+  or confirmed (after commit). A pending booking counts towards own as soon as it is written, so the
+  very next quote sees it (slide 19).
 
-"accept 之后容量在哪里扣减":在 ``pending()``。失败时 ``rollback()`` 退回,
-成功后 ``confirm()`` 转正,不再需要时 ``release()`` 归还。
+"Where is capacity deducted after accept": in ``pending()``. On failure ``rollback()`` returns it,
+on success ``confirm()`` makes it permanent, and ``release()`` gives it back when no longer needed.
 
-时间槽:第 i 槽覆盖 [origin + i·slot, origin + (i+1)·slot)。一段预订只要碰到某个槽,
-就按该段速率占满整个槽——这就是 slide 23 说的量化误差:槽越大,零头浪费越多。
+Time slots: slot i covers [origin + i·slot, origin + (i+1)·slot). A booking segment that touches a
+slot occupies that whole slot at the segment's rate — this is the quantization error of slide 23:
+the larger the slot, the more leftover capacity is wasted.
 """
 
 import threading
@@ -22,15 +25,16 @@ from .config import NetAgentConfig
 from .schemas import LinkSample, RateSegment
 from .topology import Path, Topology
 
-EPS_GBPS = 1e-9  # 浮点比较容差,不是业务参数
+EPS_GBPS = 1e-9  # floating-point comparison tolerance, not a business parameter
 
 
 class OutOfHorizon(ValueError):
-    """时间落在账本覆盖范围之外(早于 origin 或晚于 horizon)。"""
+    """A time falls outside the range the ledger covers (before origin or after the horizon)."""
 
 
 class InsufficientCapacity(Exception):
-    """某条链路的某个槽容量不够。带上是哪一跳、缺多少、被谁挡住,供 offer 的 blocked_by 和 runtime 定位拥塞用。"""
+    """A slot on some link lacks capacity. Carries which hop, how much is missing and what blocks it, for an
+    offer's blocked_by and for runtime congestion localization."""
 
     def __init__(self, link_id: str, slot_start: datetime, need: float, available: float,
                  blocked_by: Literal["own_commitment", "foreign_traffic"]):
@@ -43,15 +47,15 @@ class InsufficientCapacity(Exception):
 class Observation:
     gbps: float
     source: str           # "topology" | "sense" | "telemetry" | ...
-    at: datetime          # 采样时间
-    valid_until: datetime  # 过期时间;拓扑初值在 origin 即过期,第一次报价前就会被刷新
+    at: datetime          # sample time
+    valid_until: datetime  # expiry; the topology's initial values expire at origin, so they are refreshed before the first quote
 
 
 @dataclass
 class Booking:
     id: str
     path: Path
-    slot_gbps: dict[int, float]                     # 槽号 → 该槽占用速率
+    slot_gbps: dict[int, float]                     # slot index → rate occupied in that slot
     state: Literal["pending", "confirmed"] = "pending"
 
 
@@ -59,7 +63,7 @@ class Booking:
 class CapacityLedger:
     topology: Topology
     cfg: NetAgentConfig
-    origin: datetime                                # 第 0 槽的开始;构造时对齐到槽边界
+    origin: datetime                                # start of slot 0; aligned to a slot boundary on construction
     _observed: dict[str, list[Observation]] = field(init=False)
     _bookings: dict[str, Booking] = field(init=False, default_factory=dict)
     _lock: threading.Lock = field(init=False, default_factory=threading.Lock)
@@ -67,11 +71,11 @@ class CapacityLedger:
     def __post_init__(self):
         slot = self.cfg.slot_seconds
         epoch = self.origin.timestamp()
-        self.origin = self.origin - timedelta(seconds=epoch % slot)  # 向下对齐到槽边界
+        self.origin = self.origin - timedelta(seconds=epoch % slot)  # round down to a slot boundary
         self._observed = {d.id: [Observation(d.capacity_gbps, "topology", self.origin, self.origin)] * self.n_slots
                           for d in self.topology.links.values()}
 
-    # ── 时间槽 ────────────────────────────────────────────────────────────
+    # ── time slots ────────────────────────────────────────────────────────
 
     @property
     def n_slots(self) -> int:
@@ -85,15 +89,15 @@ class CapacityLedger:
         return self.origin + timedelta(seconds=i * self.cfg.slot_seconds)
 
     def slots_covering(self, start: datetime, end: datetime) -> range:
-        """与 [start, end) 有交集的所有槽号。"""
+        """All slot indices that intersect [start, end)."""
         if start < self.origin or end > self.horizon_end:
             raise OutOfHorizon(f"[{start}, {end}) outside ledger [{self.origin}, {self.horizon_end})")
         slot = self.cfg.slot_seconds
         first = int((start - self.origin).total_seconds() // slot)
-        last = int(-(-(end - self.origin).total_seconds() // slot))  # 向上取整
+        last = int(-(-(end - self.origin).total_seconds() // slot))  # round up
         return range(first, last)
 
-    # ── 读 ────────────────────────────────────────────────────────────────
+    # ── reads ─────────────────────────────────────────────────────────────
 
     def observed(self, link_id: str, i: int) -> Observation:
         return self._observed[link_id][i]
@@ -105,7 +109,7 @@ class CapacityLedger:
         return max(0.0, self.observed(link_id, i).gbps - self.own(link_id, i))
 
     def path_available(self, path: Path, i: int) -> tuple[float, str]:
-        """路径在第 i 槽的可用容量 = 沿途各链路的最小值;同时返回瓶颈是哪一跳。"""
+        """A path's available capacity in slot i = the minimum over its links; also returns which hop is the bottleneck."""
         return min((self.available(link, i), link) for link in path)
 
     def is_stale(self, link_id: str, i: int, now: datetime) -> bool:
@@ -114,13 +118,13 @@ class CapacityLedger:
     def booking(self, booking_id: str) -> Booking:
         return self._bookings[booking_id]
 
-    # ── 写 ────────────────────────────────────────────────────────────────
+    # ── writes ────────────────────────────────────────────────────────────
 
     def apply(self, samples: list[LinkSample]) -> None:
-        """把一批 telemetry 样本写进 observed。样本超出账本范围的部分裁掉。
+        """Write a batch of telemetry samples into observed. Parts of samples outside the ledger range are clipped.
 
-        一个槽若被同一批里的多个样本覆盖(样本边界落在槽中间),取最小值:
-        槽内任一时刻的可用容量都不应被高估。
+        If a slot is covered by several samples in the same batch (a sample boundary falls inside the
+        slot), take the minimum: available capacity must not be overestimated at any instant in the slot.
         """
         per_slot: dict[tuple[str, int], Observation] = {}
         for s in samples:
@@ -137,11 +141,12 @@ class CapacityLedger:
                 self._observed[link_id][i] = obs
 
     def pending(self, booking_id: str, path: Path, profile: list[RateSegment]) -> None:
-        """预扣:先检查沿途每条链路每个槽都够,全部够了才写入;任何一处不够就什么都不写。"""
+        """Hold capacity: first check that every slot on every link along the path suffices, and write only if
+        all do; if any one falls short, nothing is written."""
         slot_gbps: dict[int, float] = {}
         for seg in profile:
             for i in self.slots_covering(seg.start, seg.end):
-                slot_gbps[i] = max(slot_gbps.get(i, 0.0), seg.gbps)  # 同一预订的相邻段落在同一槽:取大者,不重复计
+                slot_gbps[i] = max(slot_gbps.get(i, 0.0), seg.gbps)  # adjacent segments of one booking in the same slot: take the larger, don't double count
         with self._lock:
             if booking_id in self._bookings:
                 raise ValueError(f"booking {booking_id!r} already exists")
@@ -149,7 +154,7 @@ class CapacityLedger:
                 for i, need in slot_gbps.items():
                     avail = self.available(link, i)
                     if need > avail + EPS_GBPS:
-                        # 若不算我们自己的预订就够 → 被自己的承诺挡住;否则是外部流量
+                        # enough without our own bookings → blocked by our own commitments; otherwise by foreign traffic
                         blocked = "own_commitment" if self.observed(link, i).gbps + EPS_GBPS >= need else "foreign_traffic"
                         raise InsufficientCapacity(link, self.slot_start(i), need, avail, blocked)
             self._bookings[booking_id] = Booking(booking_id, path, slot_gbps)
@@ -160,7 +165,7 @@ class CapacityLedger:
             b.state = "confirmed"
 
     def rollback(self, booking_id: str) -> None:
-        """撤销一笔 pending(例如 SENSE 调用失败)。已 confirmed 的要用 release。"""
+        """Undo a pending booking (e.g. when the SENSE call fails). Confirmed bookings use release instead."""
         with self._lock:
             self._require(booking_id, "pending")
             del self._bookings[booking_id]

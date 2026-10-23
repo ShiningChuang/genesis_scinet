@@ -1,10 +1,12 @@
-"""完成时间估计:预留了某个速率,实际大概多快传完(slide 19:predicted_finish p50 / p95 at achievable rate)。
+"""Finish-time estimation: given a reserved rate, roughly how fast the transfer actually completes
+(slide 19: predicted_finish p50 / p95 at achievable rate).
 
-``RateModel`` 是第 9 步 Learning 校准结果的接入点。第一版只有 ``IdealRateModel``:
-假设实际速率 = 预留速率,所以 p50 = p95 = 方案的结束时间。
+``RateModel`` is the hook for the step-9 Learning calibration. The first version only has
+``IdealRateModel``: it assumes actual rate = reserved rate, so p50 = p95 = the placement's end time.
 
-已知局限:换成校准模型后,若实际速率低于预留速率,p95 会晚于预留时段的结束,
-传输会超出预留时段;届时 placement 需要按 p95 速率来定预留时长。
+Known limitation: once a calibrated model is used, an actual rate below the reserved rate makes p95
+later than the end of the reserved window, so the transfer would overrun its reservation; placement
+will then need to size reservations by the p95 rate.
 """
 
 from datetime import datetime
@@ -15,7 +17,7 @@ from .placement import Placement
 
 class RateModel(Protocol):
     def predict_finish(self, p: Placement, nbytes: int) -> tuple[datetime, datetime]:
-        """返回 (p50, p95) 完成时间。"""
+        """Return the (p50, p95) finish times."""
         ...
 
 

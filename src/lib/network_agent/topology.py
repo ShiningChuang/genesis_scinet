@@ -1,10 +1,11 @@
-"""网络拓扑:节点、链路、候选路径。
+"""Network topology: nodes, links, candidate paths.
 
-拓扑描述的是物理链路(无向,如光纤 L2 连接 esnet-chi 与 esnet-atl)。链路是全双工的,
-两个方向各有一份完整容量,所以内部把每条物理链路拆成两条**有向链路**,
-账本也按有向链路记账:A→B 方向占满,不影响 B→A。
+The topology describes physical links (undirected, e.g. fiber L2 connecting esnet-chi and esnet-atl).
+Links are full duplex, with the full capacity available in each direction, so internally every
+physical link is split into two **directed links**, and the ledger also books per directed link:
+saturating A→B does not affect B→A.
 
-有向链路 id 形如 ``L2:esnet-chi>esnet-atl``,一条路径 = 有向链路 id 的元组。
+Directed link ids look like ``L2:esnet-chi>esnet-atl``; a path is a tuple of directed link ids.
 """
 
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ class LinkSpec(BaseModel):
     id: str
     a: str
     b: str
-    capacity_gbps: PositiveFloat   # 每个方向各自的配置容量(全双工、假设对称);来自 slide 14 的 WfPlatform 静态快照,用来初始化账本
+    capacity_gbps: PositiveFloat   # configured capacity in each direction (full duplex, assumed symmetric); from the slide-14 WfPlatform static snapshot, used to initialize the ledger
 
 
 class TopologySpec(BaseModel):
@@ -44,13 +45,13 @@ class TopologySpec(BaseModel):
 @dataclass(frozen=True)
 class DirectedLink:
     id: str            # "L2:esnet-chi>esnet-atl"
-    link_id: str       # 物理链路 "L2"
+    link_id: str       # physical link "L2"
     src: str
     dst: str
     capacity_gbps: float
 
 
-Path = tuple[str, ...]  # 有向链路 id 序列
+Path = tuple[str, ...]  # sequence of directed link ids
 
 
 class Topology:
@@ -69,9 +70,10 @@ class Topology:
         return cls(TopologySpec.model_validate(d))
 
     def paths(self, src: str, dst: str, k: int) -> list[Path]:
-        """src → dst 的无环路径,按 (跳数, 链路 id) 排序,最多 k 条;没有路径时返回空列表。
+        """Loop-free paths src → dst, sorted by (hop count, link ids), at most k; an empty list if there is none.
 
-        穷举所有无环路径,只适合 demo 规模的拓扑;拓扑变大后换成 Yen 的 k 最短路径。
+        Enumerates every loop-free path, which only suits demo-sized topologies; switch to Yen's
+        k-shortest paths once the topology grows.
         """
         for n in (src, dst):
             if n not in self._out:

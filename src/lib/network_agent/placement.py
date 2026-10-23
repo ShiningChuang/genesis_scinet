@@ -1,14 +1,17 @@
-"""报价的放置搜索:在账本上为一条传输,沿一条路径找 (开始时间, 恒定速率) 方案(slide 7、slide 19 P1)。
+"""Placement search for quotes: on the ledger, find (start time, constant rate) placements for one
+transfer along one path (slide 7, slide 19 P1).
 
-只读账本,不写;不调用 SENSE。第一版用三条规则,各产出一个方案(以后可换成可替换的 policy):
+Reads the ledger, never writes it; never calls SENSE. The first version uses three rules, each
+producing one placement (later replaceable by a pluggable policy):
 
-    earliest_start  最早能开始的时刻,用从那时起能维持的最大速率      → slide 7 的 a1
-    max_rate        整个窗口内能达到的最高速率,取最早能达到它的时刻  → a2
-    min_rate        从最早时刻起,刚好赶上 latest_finish 的最低速率   → a3
+    earliest_start  the earliest possible start, at the highest rate sustainable from then on  → a1 in slide 7
+    max_rate        the highest rate reachable in the window, at the earliest time it is reached  → a2
+    min_rate        from the earliest start, the lowest rate that still meets latest_finish     → a3
 
-三条规则代表 slide 7 说的取舍:早开始、短占用、少占容量。network agent 只列出,不替
-scheduling agent 选。速率按 rate_step_gbps 取整。容量检查和 ledger.pending 用同一套槽换算,
-所以报得出的方案在 reserve 时一定订得上(前提是期间账本没变)。
+The three rules are the trade-offs slide 7 describes: start early, occupy briefly, use little
+capacity. The network agent only lists them and does not choose for the scheduling agent. Rates are
+rounded to rate_step_gbps. Capacity checks use the same slot arithmetic as ledger.pending, so any
+placement we quote can definitely be booked at reserve time (provided the ledger has not changed).
 """
 
 from dataclasses import dataclass
@@ -34,11 +37,11 @@ class Placement:
     end: datetime
     gbps: float
     strategy: Strategy
-    blocked_by: BlockedBy | None    # 速率没能更高,是被我们自己的预订挡住,还是被外部流量挡住
+    blocked_by: BlockedBy | None    # why the rate could not be higher: our own bookings or foreign traffic
 
 
 def dedupe(placements: list[Placement]) -> list[Placement]:
-    """开始时间和速率都相同的方案,对 scheduling agent 来说没有区别(它看不到路径):只保留先出现的。"""
+    """Placements with the same start and rate are indistinguishable to the scheduling agent (it cannot see paths): keep the first one."""
     seen, out = set(), []
     for p in placements:
         if (p.start, p.gbps) not in seen:
@@ -53,7 +56,7 @@ def duration(nbytes: int, gbps: float) -> timedelta:
 
 def _fits(ledger: CapacityLedger, path: Path, start: datetime, end: datetime, gbps: float,
           ignore_own: bool = False) -> bool:
-    """[start, end) 碰到的每个槽,路径都能给出 gbps。ignore_own=True 时假装我们自己一笔预订都没有。"""
+    """The path can give gbps in every slot that [start, end) touches. ignore_own=True pretends we have no bookings of our own."""
     for i in ledger.slots_covering(start, end):
         if ignore_own:
             room = min(ledger.observed(link, i).gbps for link in path)
@@ -66,7 +69,7 @@ def _fits(ledger: CapacityLedger, path: Path, start: datetime, end: datetime, gb
 
 def _max_rate_at(ledger: CapacityLedger, path: Path, nbytes: int, start: datetime, deadline: datetime,
                  rates: list[float], ignore_own: bool = False) -> float | None:
-    """从 start 开始、在 deadline 前传完,能维持的最大速率;一档都不行返回 None。"""
+    """The highest rate sustainable when starting at start and finishing by deadline; None if no rate step fits."""
     for r in reversed(rates):
         end = start + duration(nbytes, r)
         if end <= deadline and _fits(ledger, path, start, end, r, ignore_own):
@@ -93,7 +96,7 @@ def search(ledger: CapacityLedger, path: Path, req: TransferRequest, now: dateti
 
     def blocked(start: datetime, gbps: float) -> BlockedBy | None:
         if gbps >= rates[-1]:
-            return None                     # 已经是这条路径的最高档,没被挡
+            return None                     # already the path's top rate step, so not blocked
         free = _max_rate_at(ledger, path, req.bytes, start, deadline, rates, ignore_own=True)
         return "own_commitment" if free and free > gbps else "foreign_traffic"
 
@@ -107,7 +110,7 @@ def search(ledger: CapacityLedger, path: Path, req: TransferRequest, now: dateti
               and _fits(ledger, path, s1, s1 + duration(req.bytes, r), r))
     found = [make(s1, best[s1], "earliest_start", blocked(s1, best[s1])),
              make(s2, top, "max_rate", blocked(s2, top)),
-             make(s1, r3, "min_rate", None)]          # 低速是主动选的,不算被挡
+             make(s1, r3, "min_rate", None)]          # the low rate is chosen on purpose, not blocked
 
     unique = dedupe(found)
     if req.min_useful_rate_gbps is not None:

@@ -1,7 +1,8 @@
-"""三张图共用的运行环境(LangGraph runtime context)。
+"""Runtime environment shared by the three graphs (the LangGraph runtime context).
 
-图的 state 只记"这一次执行"的工作记录;账本、拓扑、外部接口这些长期存在、所有请求共用的东西
-放在 context 里,由调用方构造一次、每次 invoke 时传入(10/14 设计:ledger 不进 state)。
+A graph's state only records the work of "this one execution". Long-lived objects shared by all
+requests — the ledger, the topology, external interfaces — live in the context instead: the caller
+builds it once and passes it on every invoke (10/14 design: the ledger stays out of state).
 """
 
 from dataclasses import dataclass, field
@@ -21,4 +22,4 @@ class AgentContext:
     ledger: CapacityLedger
     telemetry: TelemetrySource
     rate_model: RateModel
-    offer_book: dict[str, Placement] = field(default_factory=dict)  # offer_id → 方案;第 5a 步 reserve 时按 id 取回路径
+    offer_book: dict[str, Placement] = field(default_factory=dict)  # offer_id → placement; reserve (step 5a) looks the path up by id

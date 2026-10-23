@@ -1,7 +1,7 @@
-"""Telemetry 接口:network agent 从这里拉取链路的容量与状态(slide 10)。
+"""Telemetry interface: where the network agent pulls link capacity and state from (slide 10).
 
-network agent 只依赖 ``TelemetrySource`` 这个接口;背后是 mock、Telemetry Agent
-(另一位同学负责)还是 SENSE / Prometheus,对它是透明的。
+The network agent depends only on the ``TelemetrySource`` interface; whether a mock, the Telemetry
+Agent (owned by another student) or SENSE / Prometheus sits behind it is transparent to the agent.
 """
 
 from dataclasses import dataclass
@@ -15,16 +15,16 @@ from .sim import MockNetwork
 class TelemetrySource(Protocol):
     def link_samples(self, link_ids: list[str], start: datetime, end: datetime,
                      now: datetime) -> list[LinkSample]:
-        """返回这些有向链路在 [start, end) 内的样本;口径见 ``schemas.LinkSample``。"""
+        """Return samples for these directed links over [start, end); see ``schemas.LinkSample`` for the semantics."""
         ...
 
 
 @dataclass
 class MockTelemetry:
-    """从 MockNetwork 读"真实情况",按状态变化切段返回样本。"""
+    """Read the "ground truth" from MockNetwork and return samples split at every state change."""
 
     network: MockNetwork
-    validity_seconds: int   # 样本有效期,即 valid_until = now + validity_seconds
+    validity_seconds: int   # sample lifetime, i.e. valid_until = now + validity_seconds
 
     def link_samples(self, link_ids: list[str], start: datetime, end: datetime,
                      now: datetime) -> list[LinkSample]:

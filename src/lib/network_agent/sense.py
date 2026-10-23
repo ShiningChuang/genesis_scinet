@@ -1,14 +1,14 @@
-"""SENSE 接口:network agent 往下只通过 ``SenseAdapter`` 配置网络(slide 8)。
+"""SENSE interface: downward, the network agent configures the network only through ``SenseAdapter`` (slide 8).
 
-slide 8 把这里叫做 swap point:背后是真实 SENSE-O、NDT 还是 Mininet,上面的图都不用改。
-采用 SENSE 的两阶段流程(workflow_phased):
+Slide 8 calls this the swap point: whether real SENSE-O, NDT or Mininet sits behind it, the graphs
+above do not change. We follow SENSE's two-phase flow (workflow_phased):
 
-    propagate  预留资源,不下发配置          ← reserve(slides 中的 hold)
-    commit     下发配置,失败则 SENSE 回滚    ← commit
-    cancel     归还资源                    ← release / reserve 到期
-    (modify 在第 5b 步加)
+    propagate  reserve resources, no configuration pushed       ← reserve (``hold`` in the slides)
+    commit     push configuration; SENSE rolls back on failure  ← commit
+    cancel     return the resources                             ← release / reserve expiry
+    (modify is added in step 5b)
 
-调用失败一律抛 ``SenseError``;图 A 的 sense_call 节点据此走 rollback 分支。
+Every failed call raises ``SenseError``; graph A's sense_call node uses it to take the rollback branch.
 """
 
 from dataclasses import dataclass, field
@@ -39,16 +39,16 @@ class SenseAdapter(Protocol):
 
 @dataclass
 class MockSense:
-    """对照 MockNetwork 的真实容量做准入;可以人为注入失败,用来测试 rollback。"""
+    """Admission control against MockNetwork's real capacity; failures can be injected to test rollback."""
 
     network: MockNetwork
-    vlan_range: tuple[int, int]                       # VLAN 池 [first, last]
+    vlan_range: tuple[int, int]                       # VLAN pool [first, last]
     _states: dict[str, ServiceState] = field(init=False, default_factory=dict)
     _fail: dict[str, int] = field(init=False, default_factory=dict)
     _ids: count = field(init=False, default_factory=lambda: count(1))
 
     def fail_next(self, op: Op, times: int = 1) -> None:
-        """接下来 times 次 op 调用直接失败(模拟 SENSE 或设备侧出错)。"""
+        """Make the next ``times`` calls of op fail outright (simulates errors in SENSE or on the devices)."""
         self._fail[op] = self._fail.get(op, 0) + times
 
     def propagate(self, intent: ServiceIntent, now: datetime) -> ServiceState:
@@ -77,7 +77,7 @@ class MockSense:
     def state(self, instance_id: str) -> ServiceState:
         return self._states[instance_id]
 
-    # ── 内部 ──────────────────────────────────────────────────────────────
+    # ── internals ─────────────────────────────────────────────────────────
 
     def _maybe_fail(self, op: Op) -> None:
         if self._fail.get(op, 0) > 0:

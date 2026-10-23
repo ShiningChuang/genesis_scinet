@@ -1,12 +1,12 @@
-"""Scheduling agent ↔ network agent 的消息(slides 6、7、19)。
+"""Messages between the scheduling agent and the network agent (slides 6, 7, 19).
 
-本文件含 planning 闭环 quote → reserve → commit 用到的消息、telemetry 样本(第 3a 步)和 SENSE 消息(第 3b 步);其余消息在第一次用到的那一步再加
-(modify / release → 第 5b 步,
-repaired / at_risk → 第 7 步,TransferRecord → 第 9 步)。
+This file holds the messages of the planning loop quote → reserve → commit, telemetry samples
+(step 3a) and SENSE messages (step 3b); other messages are added in the step that first needs them
+(modify / release → step 5b, repaired / at_risk → step 7, TransferRecord → step 9).
 
-所有消息都是不可变的 pydantic 模型,未知字段一律拒绝:agent 之间走 JSON,
-坏消息在入口就被拦下,不会流进账本。校验只管"格式与自洽",不管"能否满足"——
-后者是 find_placements 的事。
+All messages are immutable pydantic models that reject unknown fields: agents exchange JSON, so a
+bad message is stopped at the door and never reaches the ledger. Validation only covers "format and
+internal consistency", not "can it be satisfied" — the latter is find_placements' job.
 """
 
 from datetime import datetime
@@ -41,18 +41,18 @@ class TimeWindow(Msg):
 
 
 class TransferRequest(Msg):
-    """一次传输的需求,而不是路由:"这些字节必须在 t1 之后开始、t2 之前结束"(slide 6)。"""
+    """The requirement of one transfer, not a route: "these bytes must start after t1 and finish before t2" (slide 6)."""
 
     id: str
     workflow_id: str
-    priority: NonNegativeInt                          # 越大越重要
-    src: str                                          # 站点/端点 id,对应拓扑里的节点
+    priority: NonNegativeInt                          # higher means more important
+    src: str                                          # site/endpoint id, a node in the topology
     dst: str
     bytes: PositiveInt
-    is_estimate: bool                                 # True:大小是估计值,运行时会被 refine
-    divisible: bool                                   # 能否拆成多段/多路径传输
+    is_estimate: bool                                 # True: the size is an estimate and will be refined at runtime
+    divisible: bool                                   # whether it may be split into several segments/paths
     window: TimeWindow
-    min_useful_rate_gbps: PositiveFloat | None = None  # 低于此速率的 offer 没有意义(slide 19)
+    min_useful_rate_gbps: PositiveFloat | None = None  # offers below this rate are useless (slide 19)
 
     @model_validator(mode="after")
     def _distinct_ends(self):
@@ -62,7 +62,7 @@ class TransferRequest(Msg):
 
 
 class QuoteRequest(Msg):
-    """一次询问一个 bundle;只读,不预留任何东西(slide 6)。"""
+    """Asks about one bundle at a time; read-only, reserves nothing (slide 6)."""
 
     quote_id: str
     bundle: list[TransferRequest]
@@ -77,7 +77,7 @@ class QuoteRequest(Msg):
 
 
 class RateSegment(Msg):
-    """时间段 [start, end) 内以 gbps 速率传输。"""
+    """Transfer at gbps over the time range [start, end)."""
 
     start: AwareDatetime
     end: AwareDatetime
@@ -91,14 +91,14 @@ class RateSegment(Msg):
 
 
 class Offer(Msg):
-    """一个可行方案。network agent 只列出可能性,不替 scheduling agent 选(slide 7)。"""
+    """One feasible option. The network agent only lists the possibilities; it does not choose for the scheduling agent (slide 7)."""
 
     offer_id: str
     transfer_id: str
-    rate_profile: list[RateSegment]                   # 按时间排序、互不重叠;允许中间有空档
+    rate_profile: list[RateSegment]                   # sorted by time, non-overlapping; gaps are allowed
     predicted_finish_p50: AwareDatetime
     predicted_finish_p95: AwareDatetime
-    blocked_by: Literal["own_commitment", "foreign_traffic"] | None = None  # 为何没给更好的方案
+    blocked_by: Literal["own_commitment", "foreign_traffic"] | None = None  # why no better offer was given
 
     @property
     def start(self) -> datetime:
@@ -119,11 +119,11 @@ class Offer(Msg):
 class RejectReason(Msg):
     cause: Literal["no_path", "no_capacity", "beyond_horizon", "below_min_useful_rate"]
     detail: str
-    when: AwareDatetime | None = None                 # 若有:最早何时可能有容量
+    when: AwareDatetime | None = None                 # if set: the earliest time capacity may be available
 
 
 class TransferQuote(Msg):
-    """bundle 中一条传输的报价结果(slide 19:feasible | infeasible | unreachable)。"""
+    """The quote result for one transfer in the bundle (slide 19: feasible | infeasible | unreachable)."""
 
     transfer_id: str
     status: Literal["feasible", "infeasible", "unreachable"]
@@ -150,20 +150,20 @@ class QuoteResponse(Msg):
 
     @property
     def admissible(self) -> bool:
-        """all_or_nothing:每条都可行才算可接纳;best_subset:至少一条可行。"""
+        """all_or_nothing: admissible only if every transfer is feasible; best_subset: at least one is feasible."""
         ok = [r.status == "feasible" for r in self.results]
         return all(ok) if self.mode == "all_or_nothing" else any(ok)
 
 
-# ── reserve(slides 中的 hold)/ commit ─────────────────────────────────────
+# ── reserve (hold in the slides) / commit ─────────────────────────────────
 
 class ReserveRequest(Msg):
-    """临时预留所选 offers;TTL 到期未 commit 则自动释放(slide 19)。"""
+    """Tentatively reserve the chosen offers; released automatically if not committed before the TTL expires (slide 19)."""
 
-    request_id: str                                   # 用于重复请求的幂等处理(第 5b 步)
+    request_id: str                                   # for idempotent handling of duplicate requests (step 5b)
     quote_id: str
     offer_ids: list[str]
-    ttl_seconds: PositiveInt | None = None            # None → 用 config 的 reserve_ttl_seconds
+    ttl_seconds: PositiveInt | None = None            # None → use reserve_ttl_seconds from the config
 
     @model_validator(mode="after")
     def _offers_ok(self):
@@ -185,7 +185,7 @@ class CommitRequest(Msg):
 
 
 class EndpointBinding(Msg):
-    """WMS 搬数据时必须用的端点;没有它,字节会走默认路由(slide 5、19)。"""
+    """The endpoints the WMS must use when moving data; without them the bytes take the default route (slides 5, 19)."""
 
     transfer_id: str
     src_uri: str
@@ -201,7 +201,7 @@ class EndpointBinding(Msg):
 
 
 class Commitment(Msg):
-    """一个承诺 = 一条传输落在某个 circuit 上;多个承诺可共用一个 circuit(slide 24)。"""
+    """A commitment = one transfer placed on some circuit; several commitments may share a circuit (slide 24)."""
 
     commitment_id: str
     transfer_id: str
@@ -217,7 +217,7 @@ class CommitAck(Msg):
 
 
 class ErrorResponse(Msg):
-    """validate 失败或执行失败时的回复(validate 失败的出口,10/15 修订)。"""
+    """The reply when validation or execution fails (the exit for failed validation, 10/15 revision)."""
 
     request_id: str
     code: Literal["invalid_request", "not_found", "expired", "conflict", "sense_failure"]
@@ -227,22 +227,25 @@ class ErrorResponse(Msg):
 # ── telemetry → network agent ─────────────────────────────────────────────
 
 class LinkSample(Msg):
-    """telemetry 对一条有向链路在 [start, end) 内的观测(slide 10:network agent 订阅 link state 与 capacity)。
+    """A telemetry observation of one directed link over [start, end) (slide 10: the network agent
+    subscribes to link state and capacity).
 
-    ``available_gbps`` 的口径:**不算我们自己的预订时**可用的容量(= 容量 − 外部流量/他人预留)。也就是observe。
-    账本据此计算 available = observed − own;
-    若数据源给的数已扣掉我们自己的预订, 由该数据源的 adapter 负责加回,否则会重复扣减。
+    Semantics of ``available_gbps``: the capacity available **when our own bookings are not counted**
+    (= capacity − foreign traffic / others' reservations), i.e. the ledger's observed. The ledger
+    computes available = observed − own from it; if a data source's number already has our own
+    bookings deducted, that source's adapter must add them back, or they would be deducted twice.
 
-    未来时段的值是数据源"现在相信"的情况(如他人已登记的预留),不是流量预测。
+    Values for future time ranges are what the data source "currently believes" (e.g. reservations
+    others have registered), not a traffic forecast.
     """
 
-    link_id: str                      # 有向链路 id,如 "L2:esnet-chi>esnet-atl"
+    link_id: str                      # directed link id, e.g. "L2:esnet-chi>esnet-atl"
     start: AwareDatetime
     end: AwareDatetime
     up: bool
     available_gbps: NonNegativeFloat
     sampled_at: AwareDatetime
-    valid_until: AwareDatetime        # 过了这个时间,账本里对应的值视为过期,需要刷新
+    valid_until: AwareDatetime        # after this time the corresponding ledger values are stale and need refreshing
     source: str                       # "telemetry" | "sense" | "mock" | ...
 
     @model_validator(mode="after")
@@ -256,34 +259,35 @@ class LinkSample(Msg):
         return self
 
 
-# ── network agent ↔ SENSE-O / NDT(slide 8)─────────────────────────────────
-# 字段取自 SENSE-O Intent API 2.0.4 的 DNC(Exp2 调研:
-# runs/20260826_181552_probe_sense_intent_harmonize_847b6e8/),做了两处简化:
-# 一条连接、恰好两个端点;带宽用 int Mbps(SENSE 要求 Mbps 字符串,由真实 adapter 转换)。
+# ── network agent ↔ SENSE-O / NDT (slide 8) ───────────────────────────────
+# Fields follow the DNC of SENSE-O Intent API 2.0.4 (Exp2 survey:
+# runs/20260826_181552_probe_sense_intent_harmonize_847b6e8/), with two simplifications:
+# one connection with exactly two endpoints; bandwidth as int Mbps (SENSE expects a Mbps string,
+# converted by the real adapter).
 
 QosClass = Literal["guaranteedCapped", "softCapped", "anyAvailable", "bestEffort"]
 
 
 class Terminal(Msg):
-    uri: str                                          # SENSE 端点 URI,如 "urn:ogf:network:anl.gov:..."
-    vlan_tag: str = "any"                             # "any":由 SENSE 分配
+    uri: str                                          # SENSE endpoint URI, e.g. "urn:ogf:network:anl.gov:..."
+    vlan_tag: str = "any"                             # "any": allocated by SENSE
 
 
 class ServiceIntent(Msg):
-    """一个 SENSE service instance 的请求:一段时间内,两端点之间一条恒定带宽的连接。
+    """A request for one SENSE service instance: a constant-bandwidth connection between two endpoints over a time range.
 
-    一个 intent 只有一个带宽值,对应 slide 24 的 circuit;多段速率的 commitment 如何
-    落到 circuit 上,是第 5a 步 place_on_circuit / compile_intent 的事。
+    An intent has a single bandwidth value and corresponds to a circuit in slide 24; how a commitment
+    with several rate segments maps onto circuits is up to place_on_circuit / compile_intent in step 5a.
     """
 
-    alias: str                                        # 我们起的名字,便于在 SENSE 侧追溯
+    alias: str                                        # a name we choose, for tracing on the SENSE side
     terminals: list[Terminal]
     capacity_mbps: PositiveInt                        # bandwidth.capacity
     qos_class: QosClass                               # bandwidth.qos_class
     start: AwareDatetime                              # schedule.start
     end: AwareDatetime                                # schedule.end
-    path_inclusion: list[str] = []                    # path_tprofile.inclusion_list;此处为有向链路 id,
-                                                      # 真实 adapter 需映射成 SENSE Path URI
+    path_inclusion: list[str] = []                    # path_tprofile.inclusion_list; directed link ids here,
+                                                      # which the real adapter must map to SENSE Path URIs
 
     @model_validator(mode="after")
     def _consistent(self):
@@ -295,10 +299,11 @@ class ServiceIntent(Msg):
 
 
 class ServiceState(Msg):
-    """SENSE 返回的实例状态。两阶段:propagate → reserved(资源已留、未下发配置),commit → committed。"""
+    """Instance state returned by SENSE. Two phases: propagate → reserved (resources held, no configuration
+    pushed), commit → committed."""
 
-    instance_id: str                                  # SENSE 的 siUUID
+    instance_id: str                                  # SENSE's siUUID
     alias: str
     state: Literal["reserved", "committed", "cancelled"]
-    vlan: int | None                                  # SENSE 分配的 VLAN;EndpointBinding 要用
+    vlan: int | None                                  # VLAN allocated by SENSE; needed by EndpointBinding
     changed_at: AwareDatetime

@@ -1,27 +1,28 @@
-"""SciNet Network Agent。
+"""SciNet Network Agent.
 
-设计来源:resources/slides/Agent Orchestration.pptx(slides 6–8, 12, 19–24)、
-resources/notes/20261014_networkagent.md(三张图)、
-resources/meetings/20261015_network_agent_prototype.md(与 KK 的修订)。
+Design sources: resources/slides/Agent Orchestration.pptx (slides 6–8, 12, 19–24),
+resources/notes/20261014_networkagent.md (the three graphs),
+resources/meetings/20261015_network_agent_prototype.md (revisions with KK).
 
-三张执行图共用同一组业务模块;图里的节点只做编排,逻辑写在普通模块里,
-便于被其他图或其他 agent 复用(10/15 会议)。计划中的模块:
+The three execution graphs share one set of business modules. Graph nodes only orchestrate;
+the logic lives in ordinary modules so that other graphs or other agents can reuse it
+(10/15 meeting). Planned modules:
 
-    config.py      参数(全部来自 config 文件,代码里不写魔法数字)
-    schemas.py     agent 间消息(TransferRequest、QuoteRequest/Response、Offer …)
-    topology.py    站点、链路、路径
-    ledger.py      逐链路、逐时间槽的容量账本:available = observed − own
-    sim.py         模拟网络(digital twin 的替身:他人占用、链路中断)
-    telemetry.py   TelemetrySource 接口 + mock
-    sense.py       SenseAdapter 接口 + mock(SENSE-O / NDT / Mininet 可替换)
-    placement.py   报价的放置搜索(slide 7 的三种 offer)
-    estimate.py    RateModel:预计完成时间 p50 / p95(第 9 步校准结果的接入点)
-    context.py     三张图共用的 runtime context(账本、拓扑、外部接口)
-    graphs/        protocol(图 A)、runtime(图 B)、learning(图 C)
+    config.py      parameters (all from config files; no magic numbers in code)
+    schemas.py     inter-agent messages (TransferRequest, QuoteRequest/Response, Offer …)
+    topology.py    sites, links, paths
+    ledger.py      per-link, per-time-slot capacity ledger: available = observed − own
+    sim.py         simulated network (stand-in for the digital twin: foreign traffic, link outages)
+    telemetry.py   TelemetrySource interface + mock
+    sense.py       SenseAdapter interface + mock (SENSE-O / NDT / Mininet are interchangeable)
+    placement.py   placement search for quotes (the three offers of slide 7)
+    estimate.py    RateModel: predicted finish p50 / p95 (hook for the step-9 calibration)
+    context.py     runtime context shared by the three graphs (ledger, topology, external interfaces)
+    graphs/        protocol (graph A), runtime (graph B), learning (graph C)
 
-约定:
-- 用 ``reserve`` 指代 slides 中的 ``hold``(KK 建议,10/15)。
-- 单位:带宽 Gbps(float),数据量 bytes(int),时间为带时区的 UTC datetime。
-- 账本按单条链路建账,而不是 slides 23 的 (src, dst) 对:这样才能定位拥塞的那一跳,
-  并支持多路径增容。
+Conventions:
+- ``reserve`` stands for the slides' ``hold`` (KK's suggestion, 10/15).
+- Units: bandwidth in Gbps (float), data size in bytes (int), times are timezone-aware UTC datetimes.
+- The ledger is kept per individual link rather than per (src, dst) pair as in slide 23: this is
+  what lets us locate the congested hop and support multi-path capacity increases.
 """
