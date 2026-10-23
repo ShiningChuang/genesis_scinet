@@ -10,16 +10,16 @@ from datetime import timedelta
 
 import pytest
 
-from src.lib.network_agent.config import load_config
-from src.lib.network_agent.context import AgentContext
-from src.lib.network_agent.estimate import IdealRateModel
-from src.lib.network_agent.graphs.protocol import build_quote_graph
-from src.lib.network_agent.ledger import CapacityLedger
-from src.lib.network_agent.schemas import QuoteRequest, RateSegment, TimeWindow, TransferRequest
-from src.lib.network_agent.sim import MockNetwork
-from src.lib.network_agent.telemetry import MockTelemetry
-from src.lib.network_agent.topology import Topology
-from src.lib.network_agent.tests.helpers import CFG, DST, L2, MAIN, SRC, TOPO, t
+from ..config import load_config
+from ..context import AgentContext
+from ..estimate import IdealRateModel
+from ..graphs.protocol import build_quote_graph
+from ..ledger import CapacityLedger
+from ..schemas import QuoteRequest, RateSegment, TimeWindow, TransferRequest
+from ..sim import MockNetwork
+from ..telemetry import MockTelemetry
+from ..topology import Topology
+from .helpers import CFG, DST, L2, MAIN, SRC, TOPO, t
 
 
 class CountingTelemetry(MockTelemetry):
@@ -171,9 +171,9 @@ def test_graph_shape(graph):
 # ── 演示:打印完整场景与报价结果 ───────────────────────────────────────────
 #
 # 运行方式(仓库根目录),参数选一个场景:
-#   .venv/bin/python -m src.lib.network_agent.tests.test_step4_quote_graph test1
-#   .venv/bin/python -m src.lib.network_agent.tests.test_step4_quote_graph test2
-#   .venv/bin/python -m src.lib.network_agent.tests.test_step4_quote_graph test3
+#   genesis_scinet:        .venv/bin/python -m src.lib.network_agent.tests.test_step4_quote_graph test1
+#   kklab_scinet_agents:   python -m network_agent.tests.test_step4_quote_graph test1
+# 场景:test1 / test2 / test3
 
 SCENARIOS = {
     "test1": ("Slide 7 as drawn: foreign traffic takes 60 Gbps on L2 until 12:00; deadline 15:00", dict(foreign_gbps=60, deadline=t(15))),
@@ -264,7 +264,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) != 2 or sys.argv[1] not in SCENARIOS:
-        print("Usage: .venv/bin/python -m src.lib.network_agent.tests.test_step4_quote_graph <scenario>")
+        print(f"Usage: python -m {__spec__.name} <scenario>")
         for name, (title, _) in SCENARIOS.items():
             print(f"  {name}   {title}")
         sys.exit(1)

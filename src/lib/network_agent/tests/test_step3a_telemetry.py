@@ -3,13 +3,13 @@
 import pytest
 from pydantic import ValidationError
 
-from src.lib.network_agent.config import load_config
-from src.lib.network_agent.ledger import CapacityLedger
-from src.lib.network_agent.schemas import LinkSample, RateSegment
-from src.lib.network_agent.sim import MockNetwork
-from src.lib.network_agent.telemetry import MockTelemetry
-from src.lib.network_agent.topology import Topology
-from src.lib.network_agent.tests.helpers import CFG, L2, L2_BACK, MAIN, TOPO, t
+from ..config import load_config
+from ..ledger import CapacityLedger
+from ..schemas import LinkSample, RateSegment
+from ..sim import MockNetwork
+from ..telemetry import MockTelemetry
+from ..topology import Topology
+from .helpers import CFG, L2, L2_BACK, MAIN, TOPO, t
 
 
 @pytest.fixture

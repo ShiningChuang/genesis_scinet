@@ -7,8 +7,8 @@ import yaml
 from langgraph.graph import END, START, StateGraph
 from pydantic import ValidationError
 
-from src.lib.network_agent.config import load_config
-from src.lib.network_agent.tests.helpers import CFG
+from ..config import load_config
+from .helpers import CFG
 
 
 def test_config_from_dict_and_section():

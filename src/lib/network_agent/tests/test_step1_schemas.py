@@ -8,11 +8,11 @@ from datetime import datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from src.lib.network_agent.schemas import (
+from ..schemas import (
     CommitAck, Commitment, EndpointBinding, Offer, QuoteRequest, QuoteResponse,
     RateSegment, RejectReason, ReserveRequest, TimeWindow, TransferQuote, TransferRequest,
 )
-from src.lib.network_agent.tests.helpers import DST, SRC, t
+from .helpers import DST, SRC, t
 
 
 def t1(**over):

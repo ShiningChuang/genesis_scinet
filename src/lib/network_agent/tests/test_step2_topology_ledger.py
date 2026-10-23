@@ -3,11 +3,11 @@
 import pytest
 from pydantic import ValidationError
 
-from src.lib.network_agent.config import load_config
-from src.lib.network_agent.ledger import CapacityLedger, InsufficientCapacity, OutOfHorizon
-from src.lib.network_agent.schemas import LinkSample, RateSegment
-from src.lib.network_agent.topology import Topology
-from src.lib.network_agent.tests.helpers import ALT, CFG, DST, L1, L2, L4, MAIN, SRC, TOPO, t
+from ..config import load_config
+from ..ledger import CapacityLedger, InsufficientCapacity, OutOfHorizon
+from ..schemas import LinkSample, RateSegment
+from ..topology import Topology
+from .helpers import ALT, CFG, DST, L1, L2, L4, MAIN, SRC, TOPO, t
 
 
 @pytest.fixture

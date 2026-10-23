@@ -3,13 +3,13 @@
 import pytest
 from pydantic import ValidationError
 
-from src.lib.network_agent.schemas import ServiceIntent, Terminal
-from src.lib.network_agent.sense import MockSense, SenseError
-from src.lib.network_agent.sim import MockNetwork
-from src.lib.network_agent.telemetry import MockTelemetry
-from src.lib.network_agent.topology import Topology
-from src.lib.network_agent.tests.helpers import L2, TOPO, t
-from src.lib.network_agent.tests.helpers import MAIN as MAIN_PATH
+from ..schemas import ServiceIntent, Terminal
+from ..sense import MockSense, SenseError
+from ..sim import MockNetwork
+from ..telemetry import MockTelemetry
+from ..topology import Topology
+from .helpers import L2, TOPO, t
+from .helpers import MAIN as MAIN_PATH
 
 MAIN = list(MAIN_PATH)                        # ServiceIntent.path_inclusion 是 list
 
