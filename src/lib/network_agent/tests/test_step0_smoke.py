@@ -1,4 +1,4 @@
-"""Step 0:环境与骨架自检。运行:.venv/bin/python -m pytest src/lib/network_agent/tests"""
+"""Step 0: environment and skeleton self-check. Run: python -m pytest <path to network_agent>/tests"""
 
 from typing import TypedDict
 
@@ -23,10 +23,10 @@ def test_config_from_yaml(tmp_path):
 
 
 @pytest.mark.parametrize("bad", [
-    {k: v for k, v in CFG.items() if k != "slot_seconds"},  # 漏写
-    {**CFG, "slot_secs": 900},                               # 拼错
-    {**CFG, "slot_seconds": 0},                              # 非正
-    {**CFG, "horizon_seconds": 1000},                        # 不是 slot 的整数倍
+    {k: v for k, v in CFG.items() if k != "slot_seconds"},  # missing
+    {**CFG, "slot_secs": 900},                               # misspelled
+    {**CFG, "slot_seconds": 0},                              # not positive
+    {**CFG, "horizon_seconds": 1000},                        # not a whole number of slots
 ])
 def test_config_rejects_bad_input(bad):
     with pytest.raises(ValidationError):

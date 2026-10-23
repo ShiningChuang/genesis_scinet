@@ -1,4 +1,4 @@
-"""Step 3a:模拟网络 → telemetry 样本 → 账本 observed。"""
+"""Step 3a: simulated network → telemetry samples → ledger observed."""
 
 import pytest
 from pydantic import ValidationError
@@ -33,19 +33,19 @@ def sample(**over):
     return LinkSample(**(base | over))
 
 
-# ── 样本校验 ──────────────────────────────────────────────────────────────
+# ── sample validation ─────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("over", [
-    {"start": t(10), "end": t(9)},           # 时间段颠倒
-    {"valid_until": t(8)},                   # 早于采样时间就过期
-    {"up": False, "available_gbps": 10},     # 中断的链路不可能有可用容量
+    {"start": t(10), "end": t(9)},           # time range reversed
+    {"valid_until": t(8)},                   # expires before it was sampled
+    {"up": False, "available_gbps": 10},     # a down link cannot have available capacity
 ])
 def test_bad_sample(over):
     with pytest.raises(ValidationError):
         sample(**over)
 
 
-# ── 模拟网络 → telemetry ──────────────────────────────────────────────────
+# ── simulated network → telemetry ─────────────────────────────────────────
 
 def test_foreign_traffic_splits_segments(net, tele):
     net.add_foreign(L2, t(9, 45), t(10, 30), 40)
@@ -70,7 +70,7 @@ def test_validity(tele):
     assert (s.sampled_at, s.valid_until) == (t(9, 1), t(9, 6))
 
 
-# ── telemetry → 账本 ──────────────────────────────────────────────────────
+# ── telemetry → ledger ────────────────────────────────────────────────────
 
 def test_topology_seed_is_stale_from_start(ledger):
     assert ledger.is_stale(L2, 0, now=t(9))
@@ -85,19 +85,19 @@ def test_apply_and_staleness(ledger):
 
 
 def test_partial_slot_takes_min(ledger):
-    """样本边界 09:20 落在 09:15 槽中间:这个槽取两段里较小的 30。"""
+    """The sample boundary 09:20 falls inside the 09:15 slot: the slot takes the smaller of the two values, 30."""
     ledger.apply([sample(start=t(9), end=t(9, 20), available_gbps=80),
                   sample(start=t(9, 20), end=t(10), available_gbps=30)])
     assert [ledger.observed(L2, i).gbps for i in range(4)] == [80, 30, 30, 30]
 
 
 def test_apply_clips_to_horizon(ledger):
-    ledger.apply([sample(start=t(8), end=t(9, 15))])           # 08:00–09:00 在账本之前,裁掉
+    ledger.apply([sample(start=t(8), end=t(9, 15))])           # 08:00–09:00 is before the ledger, clipped
     assert ledger.observed(L2, 0).gbps == 60
 
 
 def test_end_to_end_no_double_counting(net, tele, ledger):
-    """他人占 40(进 observed),我们订 30(进 own):available = 100 − 40 − 30 = 30,两者各算一次。"""
+    """Others use 40 (goes into observed), we book 30 (goes into own): available = 100 − 40 − 30 = 30, each counted once."""
     net.add_foreign(L2, t(9), t(10), 40)
     ledger.apply(tele.link_samples(list(MAIN), t(9), t(10), now=t(9)))
     ledger.pending("b1", MAIN, [RateSegment(start=t(9), end=t(9, 30), gbps=30)])

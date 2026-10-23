@@ -1,7 +1,7 @@
-"""Step 4:图 A 的 quote 分支。核心用例复现 slide 7:
+"""Step 4: the quote branch of graph A. The core case reproduces slide 7:
 
-    T1 = 50 TB,窗口 09:00–15:00;账本:12:00 前只剩 40 Gbps,之后 100 Gbps 全空。
-    a1 09:00 @ 40 Gbps → 11:46:40   (slide 写 13:47,算术应为 11:47,见 PLAN 待决)
+    T1 = 50 TB, window 09:00–15:00; ledger: only 40 Gbps left before 12:00, fully free 100 Gbps after.
+    a1 09:00 @ 40 Gbps → 11:46:40   (slide says 13:47; the arithmetic gives 11:47, see PLAN open items)
     a2 12:00 @ 100 Gbps → 13:06:40  (slide 13:07)
     a3 09:00 @ 20 Gbps → 14:33:20   (slide 14:34)
 """
@@ -31,7 +31,7 @@ class CountingTelemetry(MockTelemetry):
 
 
 def make_net(foreign_gbps=60):
-    """slide 7 的网络:12:00 前 L2 被他人占 foreign_gbps(默认 60,即只剩 40 Gbps)。"""
+    """The slide-7 network: before 12:00 others use foreign_gbps on L2 (default 60, leaving 40 Gbps)."""
     n = MockNetwork(Topology.from_dict(TOPO))
     n.add_foreign(L2, t(9), t(12), foreign_gbps)
     return n
@@ -107,7 +107,7 @@ def test_refresh_pulls_telemetry_into_ledger(graph, ctx):
 
 def test_fresh_values_are_not_refetched(graph, ctx):
     quote(graph, ctx, tr())
-    out = quote(graph, ctx, tr(), now=t(9, 1))    # 样本 5 分钟有效,1 分钟后还新鲜
+    out = quote(graph, ctx, tr(), now=t(9, 1))    # samples are valid for 5 minutes, still fresh after 1
     assert out["refreshed"] == [] and ctx.telemetry.calls == 1
 
 
@@ -116,24 +116,24 @@ def test_quote_is_read_only(graph, ctx):
     assert all(ctx.ledger.own(link, i) == 0 for link in MAIN for i in range(ctx.ledger.n_slots))
 
 
-# ── blocked_by:被自己的预订挡住 ───────────────────────────────────────────
+# ── blocked_by: blocked by our own bookings ───────────────────────────────
 
 def test_blocked_by_own_commitment(net, graph, ctx):
-    """去掉他人占用,换成我们自己在主路径上订了 30:最早开始只能给 70,原因是 own_commitment。"""
+    """Remove foreign traffic and book 30 ourselves on the main path instead: the earliest start can only get 70, because of own_commitment."""
     net._foreign[L2].clear()
     ctx.ledger.pending("ours", MAIN, [RateSegment(start=t(9), end=t(12), gbps=30)])
     first = quote(graph, ctx, tr())["response"].results[0].offers[0]
     assert (first.rate_profile[0].gbps, first.blocked_by) == (70, "own_commitment")
 
 
-# ── 拒绝的四种情况 ────────────────────────────────────────────────────────
+# ── the four rejection cases ──────────────────────────────────────────────
 
 @pytest.mark.parametrize("transfer, status, cause", [
     (tr(dst="mars"), "unreachable", "no_path"),
-    (tr(window=(t(9), t(9, 30))), "infeasible", "no_capacity"),                    # 30 分钟传 50 TB
-    (tr(window=(t(10, day=21), t(12, day=21))), "infeasible", "beyond_horizon"),    # 账本只看到次日 09:00
-    (tr(nbytes=10 * 10**12, window=(t(9), t(11)), min_useful_rate_gbps=60),             # 40 Gbps 能传完,
-     "infeasible", "below_min_useful_rate"),                                          # 但低于声明的 60
+    (tr(window=(t(9), t(9, 30))), "infeasible", "no_capacity"),                    # 50 TB in 30 minutes
+    (tr(window=(t(10, day=21), t(12, day=21))), "infeasible", "beyond_horizon"),    # the ledger only reaches 09:00 next day
+    (tr(nbytes=10 * 10**12, window=(t(9), t(11)), min_useful_rate_gbps=60),             # 40 Gbps would finish,
+     "infeasible", "below_min_useful_rate"),                                          # but is below the declared 60
 ])
 def test_rejections(graph, ctx, transfer, status, cause):
     result = quote(graph, ctx, transfer)["response"].results[0]
@@ -145,7 +145,7 @@ def test_now_clips_earliest_start(graph, ctx):
     assert min(o.rate_profile[0].start for o in offers) == t(10, 5)
 
 
-# ── bundle 与 mode ────────────────────────────────────────────────────────
+# ── bundle and mode ───────────────────────────────────────────────────────
 
 def test_mode_decides_admissible(graph, ctx):
     bundle = [tr(), tr(id="T2", dst="mars")]
@@ -153,11 +153,11 @@ def test_mode_decides_admissible(graph, ctx):
     assert quote(graph, ctx, *bundle, mode="best_subset")["response"].admissible
 
 
-# ── validate 失败的出口 ───────────────────────────────────────────────────
+# ── exit for failed validation ────────────────────────────────────────────
 
 def test_invalid_request_goes_straight_to_respond(graph, ctx):
     raw = QuoteRequest(quote_id="q9", bundle=[tr()], mode="best_subset").model_dump()
-    raw["bundle"][0]["window"] = {"earliest_start": t(15), "latest_finish": t(9)}   # 时间窗颠倒
+    raw["bundle"][0]["window"] = {"earliest_start": t(15), "latest_finish": t(9)}   # window reversed
     out = graph.invoke({"raw": raw, "now": t(9)}, context=ctx)
     assert (out["response"].code, out["response"].request_id) == ("invalid_request", "q9")
     assert "refreshed" not in out and ctx.telemetry.calls == 0
@@ -168,12 +168,12 @@ def test_graph_shape(graph):
     assert {"validate_bundle", "refresh_if_stale", "find_placements", "estimate_finish", "respond"} <= nodes
 
 
-# ── 演示:打印完整场景与报价结果 ───────────────────────────────────────────
+# ── demo: print the full scenario and quote result ────────────────────────
 #
-# 运行方式(仓库根目录),参数选一个场景:
+# How to run (from the repository root), with one scenario as the argument:
 #   genesis_scinet:        .venv/bin/python -m src.lib.network_agent.tests.test_step4_quote_graph test1
 #   kklab_scinet_agents:   python -m network_agent.tests.test_step4_quote_graph test1
-# 场景:test1 / test2 / test3
+# scenarios: test1 / test2 / test3
 
 SCENARIOS = {
     "test1": ("Slide 7 as drawn: foreign traffic takes 60 Gbps on L2 until 12:00; deadline 15:00", dict(foreign_gbps=60, deadline=t(15))),
@@ -183,13 +183,13 @@ SCENARIOS = {
 
 
 def hops(topology, path):
-    """有向链路 id 序列 → 'anl-n02 ─L1→ esnet-atl ─L2→ ...'"""
+    """Directed link id sequence → 'anl-n02 ─L1→ esnet-atl ─L2→ ...'"""
     links = [topology.links[d] for d in path]
     return links[0].src + "".join(f" ─{d.link_id}→ {d.dst}" for d in links)
 
 
 def availability_runs(ledger, path, start, end):
-    """路径在 [start, end) 内的可用容量,相邻相同的时段合并:[(起, 止, Gbps, 瓶颈链路)]。"""
+    """A path's available capacity over [start, end), merging adjacent equal runs: [(start, end, Gbps, bottleneck link)]."""
     runs = []
     for i in ledger.slots_covering(start, end):
         gbps, link = ledger.path_available(path, i)
@@ -207,7 +207,7 @@ def print_scenario(title, net, ctx, req, now, out):
     print("Nodes:", ", ".join(topo.nodes))
     print("Links (physical; capacity is per direction):")
     printed = set()
-    for d in topo.links.values():                           # 每条物理链路只打印一次,按定义时 a → b 的顺序
+    for d in topo.links.values():                           # print each physical link once, in its defined a → b direction
         if d.link_id not in printed:
             printed.add(d.link_id)
             print(f"  {d.link_id}: {d.src} — {d.dst}   {d.capacity_gbps:g} Gbps")
@@ -240,7 +240,7 @@ def print_scenario(title, net, ctx, req, now, out):
         if r.status != "feasible":
             print(f"  {r.transfer_id}: {r.status} ({r.reason.cause}: {r.reason.detail})")
         for o in r.offers:
-            s, p = o.rate_profile[0], ctx.offer_book[o.offer_id]   # offer_book 里有对外不公开的路径和规则
+            s, p = o.rate_profile[0], ctx.offer_book[o.offer_id]   # offer_book holds the path and rule that are not exposed externally
             print(f"  {o.offer_id}: start {s.start:%H:%M} @ {s.gbps:>5g} Gbps → finish {o.predicted_finish_p50:%H:%M:%S}"
                   f"   [path{path_no[p.path]}, rule {p.strategy}]   blocked_by={o.blocked_by}")
 
