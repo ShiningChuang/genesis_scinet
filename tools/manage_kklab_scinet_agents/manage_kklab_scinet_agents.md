@@ -5,11 +5,13 @@
 
 ```bash
 bash tools/manage_kklab_scinet_agents/kklab.sh setup                 # 一次性：加入 submodule
-bash tools/manage_kklab_scinet_agents/kklab.sh sync                  # network agent 有新提交后：同步到共享仓库
+bash tools/manage_kklab_scinet_agents/kklab.sh sync [--force]        # network agent 有新提交后：同步到共享仓库
 bash tools/manage_kklab_scinet_agents/kklab.sh begin                 # 改共享文件前
-bash tools/manage_kklab_scinet_agents/kklab.sh finish "<提交说明>"     # 改共享文件后
+bash tools/manage_kklab_scinet_agents/kklab.sh finish "<English message>"   # 改共享文件后
 bash tools/manage_kklab_scinet_agents/kklab.sh status                # 随时查看状态
 ```
+
+> **规则：推到 kklab 的提交说明和代码注释都不能有中文。** 包括中文标点（，。（）等）。`sync` 和 `finish` 都会检查，违反就拒绝推送，详见 §4 第 1 条。
 
 ## 1. 三处代码的关系
 
@@ -17,7 +19,7 @@ bash tools/manage_kklab_scinet_agents/kklab.sh status                # 随时查
 genesis_scinet（本仓库，私有，不分享）
 ├── src/lib/network_agent/          ← network agent 唯一的源头，日常开发都在这里
 │         │
-│         │  kklab.sh sync（git subtree，单向，保留提交历史）
+│         │  kklab.sh sync（单向复制已提交的内容，英文提交说明；不带 genesis 的提交历史）
 │         ▼
 └── external/kklab_scinet_agents/   ← submodule = 共享仓库
     ├── network_agent/              ← 同步过来的副本，只由 sync 写入
@@ -44,22 +46,29 @@ bash tools/manage_kklab_scinet_agents/kklab.sh sync
 git push                          # 推本仓库（sync 只在本地提交了 gitlink）
 ```
 
-`sync` 依次做四件事：
-1. 用 `git subtree split` 把 `src/lib/network_agent` 的历史拆到分支 `network-agent-export`，推到共享仓库；
-2. 把 submodule 切到 `main` 并拉到最新；
-3. 在 submodule 里 `git subtree pull` 并入 `network_agent/`，推送共享仓库的 `main`；
+`sync` 先做三项检查，任何一项不通过就停下：
+- `src/lib/network_agent` 下没有未提交的改动；
+- `src/lib/network_agent` 里已提交的代码文件（`.md` 以外）不含中文；
+- 共享仓库当前的 `network_agent/` 等于本仓库某一次提交的版本，也就是没有人在那边直接改过（否则复制会把那些改动覆盖掉）。
+
+然后依次：
+1. 把 submodule 切到 `main` 并拉到最新；
+2. 用 `git archive` 取出 `src/lib/network_agent` **已提交**的内容，用 `rsync --delete` 覆盖 `network_agent/`（未跟踪文件、`__pycache__` 不会带过去）；
+3. 有变化就在共享仓库提交 `Sync network_agent from genesis_scinet@<hash>` 并推送；
 4. 在本仓库**只**提交 submodule 指针（gitlink），不带上其他改动。
+
+**为什么不用 git subtree 了：** subtree 会把 genesis 里每个提交的原始说明（大多是中文）原样带进共享仓库，违反上面的规则。现在改成复制，代价是共享仓库里只能看到一串 `Sync network_agent ...` 提交，看不到 genesis 里的逐条历史；要看细节，用提交说明里的 `<hash>` 回 genesis 查。
 
 ### 修改共享文件（resources/、README 等）
 
 ```bash
 bash tools/manage_kklab_scinet_agents/kklab.sh begin
 # 编辑 external/kklab_scinet_agents/resources/... 等文件
-bash tools/manage_kklab_scinet_agents/kklab.sh finish "resources: 加入拓扑示意图"
+bash tools/manage_kklab_scinet_agents/kklab.sh finish "resources: add topology diagram"
 git push                          # 推本仓库
 ```
 
-`finish` 依次：检查 submodule 在 `main` 上、`network_agent/` 没被改 → 提交 → `pull --rebase`（同事可能刚推过）→ 推送共享仓库 → 在本仓库提交 gitlink。
+`finish` 依次：检查 submodule 在 `main` 上、`network_agent/` 没被改、提交说明（含尚未推送的提交）没有中文、新增的代码行（`.md` 以外）没有中文 → 提交 → `pull --rebase`（同事可能刚推过）→ 推送共享仓库 → 在本仓库提交 gitlink。
 
 ### 新机器 / 新 clone
 
@@ -70,17 +79,22 @@ bash tools/manage_kklab_scinet_agents/kklab.sh begin         # 切到 main（sub
 
 ## 4. 注意事项
 
-1. **submodule 默认处于 detached HEAD。** `git submodule update` 之后，submodule 停在某个 commit 上，不在任何分支。这时直接 commit，提交不属于任何分支，很容易丢。所以改之前一律先运行 `begin`（`sync` 内部也会自动切到 `main`）。
+1. **推到 kklab 的提交说明和代码注释不能有中文。**
+   - 范围：**提交说明**（`finish` 的参数；`sync` 的提交说明由脚本生成，固定为英文）；**代码文件**里的注释、docstring 和字符串（`.py`、`.sh`、`.yaml` 等，凡不是 `.md` 的文件都检查）。
+   - 不检查的：`.md` 文档的正文（比如 `network_agent/PLAN.md`、`resources/` 下的笔记），它们不算注释。要不要也写成英文，按需要自己决定。
+   - 中文标点（`，。（）：；` 等全角字符）也算中文，检查时会被拦下。
+   - 本仓库（genesis_scinet）不受这条限制：这边的提交说明、gitlink 提交、脚本注释照常可以用中文。
+   - 检查在本地完成（`sync` 检查 `src/lib/network_agent` 在 HEAD 里的内容，`finish` 检查暂存区里新增的行），所以**只拦得住通过 `kklab.sh` 推送的内容**。同事那边需要自觉遵守，这条已写进共享仓库 README。
 
-2. **每次修改都要提交两次。** 一次在 submodule 里（提交并推送共享仓库），一次在本仓库（提交新的 gitlink）。脚本两步都会做，但**本仓库的 push 需要你自己执行**。`scripts/run_experiment.py` 的自动提交只会 `git add EXPERIMENTS.md configs runs`，**不会**带上 gitlink。
+2. **submodule 默认处于 detached HEAD。** `git submodule update` 之后，submodule 停在某个 commit 上，不在任何分支。这时直接 commit，提交不属于任何分支，很容易丢。所以改之前一律先运行 `begin`（`sync` 内部也会自动切到 `main`）。
 
-3. **本地有两份 `network_agent`。** 一份在 `src/lib/network_agent`（源头），一份在 `external/kklab_scinet_agents/network_agent`（副本）。
+3. **每次修改都要提交两次。** 一次在 submodule 里（提交并推送共享仓库），一次在本仓库（提交新的 gitlink）。脚本两步都会做，但**本仓库的 push 需要你自己执行**。`scripts/run_experiment.py` 的自动提交只会 `git add EXPERIMENTS.md configs runs`，**不会**带上 gitlink。
+
+4. **本地有两份 `network_agent`。** 一份在 `src/lib/network_agent`（源头），一份在 `external/kklab_scinet_agents/network_agent`（副本）。
    - 不要把 `external/kklab_scinet_agents` 加进 `PYTHONPATH` / `sys.path`，否则可能 import 到副本。
    - 在本仓库根目录直接运行 `pytest`，可能把副本的测试也收集进来，两份模块名相同，会报 `import file mismatch`。根目录的 `pytest.ini` 已经限定 `testpaths = src`、`norecursedirs = external ...`；显式写路径（`pytest src/lib/network_agent/tests`）也没问题，**不要写成 `pytest external/...` 或 `pytest .`**。
 
-4. **`sync` 只同步已 commit 的内容。** `src/lib/network_agent` 下有未提交的改动时，脚本会直接停下。
-
-5. **不要删除 `network-agent-export` 分支。** 本仓库的本地分支和共享仓库的远端分支都要保留：subtree 靠它们做增量同步，删掉后下次同步会重新拆分整段历史，并可能冲突。
+5. **`sync` 只同步已 commit 的内容。** `src/lib/network_agent` 下有未提交的改动时，脚本会直接停下。
 
 6. **测试必须保持包内相对导入。** `src/lib/network_agent/tests/` 里用的是 `from ..schemas import ...`、`from .helpers import ...`，所以同一份代码在两个仓库里都能运行（这边是 `src.lib.network_agent`，那边是顶层 `network_agent`）。新写的测试不要再用 `from src.lib.network_agent...`，否则同步过去后会 import 失败。
 
@@ -107,11 +121,11 @@ bash tools/manage_kklab_scinet_agents/kklab.sh finish "<提交说明>"
 
 ### 有人直接改了共享仓库里的 `network_agent/`
 
-`sync` 的 subtree pull 会出现合并冲突。处理原则是**以 `src/lib/network_agent` 为准**：
+`sync` 会停下并提示"与本仓库任何一次提交都不一致"。这时**不要强行同步**：复制会用 `src/lib/network_agent` 的内容整体覆盖 `network_agent/`，对方的改动就丢了。处理原则是**以 `src/lib/network_agent` 为准**：
 
-1. 先看对方改了什么：`git -C external/kklab_scinet_agents log origin/main -- network_agent`；
-2. 有价值的改动，手工搬进 `src/lib/network_agent` 并 commit；
-3. 在 submodule 里解决冲突时，一律取同步过来的版本，提交合并后推送，再运行一次 `sync`；
+1. 先看对方改了什么：`git -C external/kklab_scinet_agents log -p origin/main -- network_agent`；
+2. 有价值的改动，手工搬进 `src/lib/network_agent` 并 commit（注释保持英文）；
+3. 运行 `bash tools/manage_kklab_scinet_agents/kklab.sh sync --force`：跳过这项一致性检查，用 `src/lib/network_agent` 的内容覆盖共享仓库的 `network_agent/`。**只有确认对方的改动已经搬回本仓库（或者确定不要）之后才用 `--force`**；
 4. 提醒对方：`network_agent/` 只由 sync 写入。
 
 ### 想换回独立 clone，或者不用 submodule 了

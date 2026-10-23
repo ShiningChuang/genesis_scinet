@@ -4,7 +4,7 @@
 #
 # 用法:
 #   bash tools/manage_kklab_scinet_agents/kklab.sh setup                 一次性:加入 submodule、切到 main、提交 gitlink
-#   bash tools/manage_kklab_scinet_agents/kklab.sh sync                  把 src/lib/network_agent 单向同步到共享仓库的 network_agent/
+#   bash tools/manage_kklab_scinet_agents/kklab.sh sync [--force]        把 src/lib/network_agent 已提交的内容单向复制到共享仓库的 network_agent/(英文提交说明)
 #   bash tools/manage_kklab_scinet_agents/kklab.sh begin                 修改共享文件前:submodule 切到 main 并拉到最新
 #   bash tools/manage_kklab_scinet_agents/kklab.sh finish "<提交说明>"     修改共享文件后:提交并推送 submodule,再提交本仓库的 gitlink
 #   bash tools/manage_kklab_scinet_agents/kklab.sh status                查看 submodule 分支、未推送提交、network_agent 是否已同步
@@ -17,10 +17,30 @@ REMOTE="${KKLAB_REMOTE:-git@github.com:ShiningChuang/kklab_scinet_agents.git}"
 SUB=external/kklab_scinet_agents             # submodule 位置
 PREFIX=src/lib/network_agent                 # 本仓库中 network agent 的源目录
 TARGET=network_agent                         # 共享仓库中的目标目录(只由 sync 写入)
-EXPORT_BRANCH=network-agent-export           # 承接 subtree 拆分历史的分支(本地 + 共享仓库各一个,勿删)
 OLD_CLONE="$REPO_ROOT/../kklab_scinet_agents"  # 改用 submodule 之前的独立 clone
 
 die() { echo "!! $*" >&2; exit 1; }
+
+# 规则:推到 kklab 的提交说明和代码注释不能有中文。
+# has_cjk 从 stdin 读,含中文字符或中文标点则返回 0。
+has_cjk() { perl -CSD -ne '$f = 1 if /[\x{3000}-\x{303F}\x{3400}-\x{9FFF}\x{FF00}-\x{FFEF}]/; END { exit($f ? 0 : 1) }'; }
+
+cjk_code_files_at_head() {  # 列出 HEAD 中 $PREFIX 下含中文的代码文件(md 文档不算注释,不检查)
+    local f
+    git ls-tree -r --name-only HEAD -- "$PREFIX" | grep -v '\.md$' | while read -r f; do
+        git show "HEAD:$f" | has_cjk && echo "  $f"
+    done
+    return 0
+}
+
+target_from_genesis() {  # 共享仓库当前的 network_agent/ 是否等于本仓库某次提交的 $PREFIX(否则说明有人在那边直接改过)
+    local tree c
+    tree="$(git -C "$SUB" rev-parse "HEAD:$TARGET" 2>/dev/null)" || return 0   # 还没有 network_agent/
+    for c in $(git log --format=%H -- "$PREFIX"); do
+        [ "$(git rev-parse "$c:$PREFIX" 2>/dev/null)" = "$tree" ] && return 0
+    done
+    return 1
+}
 
 require_sub() {
     [ -e "$SUB/.git" ] || die "submodule 未初始化:首次运行 bash tools/manage_kklab_scinet_agents/kklab.sh setup;新 clone 后运行 git submodule update --init $SUB"
@@ -68,28 +88,37 @@ cmd_setup() {
 
 cmd_sync() {
     require_sub
+    local force="${1:-}"
     [ -z "$(git status --porcelain -- "$PREFIX")" ] || die "$PREFIX 有未提交的改动,未提交部分不会被同步。先 commit。"
     [ -z "$(git -C "$SUB" status --porcelain)" ] || die "$SUB 有未提交的改动(可能 begin 之后还没 finish),先处理。"
+    local bad
+    bad="$(cjk_code_files_at_head)"
+    [ -z "$bad" ] || die "以下文件含中文(注释或字符串),kklab 不允许,改成英文并 commit 后再同步:
+$bad"
 
-    echo "==> [1/4] 拆分 $PREFIX 的历史 → $EXPORT_BRANCH,推到共享仓库"
-    git subtree split -q --prefix="$PREFIX" -b "$EXPORT_BRANCH" >/dev/null   # 分支已存在时增量更新
-    git push -q "$REMOTE" "$EXPORT_BRANCH:$EXPORT_BRANCH"
-
-    echo "==> [2/4] submodule 切到 main 并拉到最新"
+    echo "==> [1/4] submodule 切到 main 并拉到最新"
     sub_on_main
+    [ "$force" = --force ] || target_from_genesis || die "共享仓库的 $TARGET/ 与本仓库任何一次提交都不一致,有人在那边直接改过。同步会覆盖这些改动,先按说明文档「有人直接改了 network_agent/」处理(处理完用 sync --force)。"
 
-    echo "==> [3/4] 并入 $TARGET/ 并推送共享仓库 main"
-    local src_rev
+    echo "==> [2/4] 用 $PREFIX 已提交的内容覆盖 $SUB/$TARGET/"
+    local src_rev tmp
     src_rev="$(git rev-parse --short HEAD)"
-    (
-        cd "$SUB"
-        if [ -d "$TARGET" ]; then
-            git subtree pull -q --prefix="$TARGET" origin "$EXPORT_BRANCH" -m "同步 network_agent(genesis_scinet $src_rev)"
-        else
-            git subtree add -q --prefix="$TARGET" origin "$EXPORT_BRANCH"
-        fi
-        git push -q origin main
-    )
+    tmp="$(mktemp -d)"
+    git archive HEAD "$PREFIX" | tar -x -C "$tmp"              # 只取已提交的内容,不带未跟踪文件和 __pycache__
+    mkdir -p "$SUB/$TARGET"
+    rsync -a --delete "$tmp/$PREFIX/" "$SUB/$TARGET/"
+    rm -rf "$tmp"
+
+    echo "==> [3/4] 提交并推送共享仓库(提交说明为英文)"
+    if [ -z "$(git -C "$SUB" status --porcelain -- "$TARGET")" ]; then
+        echo "$TARGET/ 无变化"
+    else
+        git -C "$SUB" add -A "$TARGET"
+        git -C "$SUB" commit -q -m "Sync network_agent from genesis_scinet@$src_rev"
+        git -C "$SUB" pull -q --rebase origin main
+        git -C "$SUB" push -q origin main
+        echo "共享仓库已推送:$(git -C "$SUB" log --oneline -1)"
+    fi
 
     echo "==> [4/4] 更新本仓库记录的 submodule 指针"
     commit_gitlink "external/kklab_scinet_agents:同步 network_agent(genesis_scinet $src_rev)"
@@ -117,7 +146,15 @@ cmd_finish() {
     if [ -z "$(git -C "$SUB" status --porcelain)" ] && [ -z "$(git -C "$SUB" log --oneline origin/main..HEAD)" ]; then
         die "submodule 里没有要提交的改动"
     fi
+    ! printf '%s' "$msg" | has_cjk || die "提交说明不能有中文(kklab 规则):$msg"
+    ! git -C "$SUB" log --format=%B origin/main..HEAD | has_cjk || \
+        die "submodule 里尚未推送的提交说明含中文,先改写(git -C $SUB commit --amend 或 rebase -i)"
     git -C "$SUB" add -A
+    if git -C "$SUB" diff --cached -U0 -- . ':(exclude)*.md' | grep '^+' | grep -v '^+++' | has_cjk; then
+        git -C "$SUB" diff --cached -U0 -- . ':(exclude)*.md' | grep '^+' | grep -v '^+++' | \
+            perl -CSD -ne 'print if /[\x{3000}-\x{303F}\x{3400}-\x{9FFF}\x{FF00}-\x{FFEF}]/' >&2
+        die "上面这些新增的代码行含中文(注释或字符串),kklab 不允许;改成英文后重新运行 finish(md 文档不检查)"
+    fi
     git -C "$SUB" diff --cached --quiet || git -C "$SUB" commit -q -m "$msg"
     git -C "$SUB" pull -q --rebase origin main    # 同事可能刚推过
     git -C "$SUB" push -q origin main
@@ -149,7 +186,7 @@ cmd_status() {
 
 case "${1:-}" in
     setup)  cmd_setup ;;
-    sync)   cmd_sync ;;
+    sync)   shift; cmd_sync "${1:-}" ;;
     begin)  cmd_begin ;;
     finish) shift; cmd_finish "${1:-}" ;;
     status) cmd_status ;;
