@@ -28,7 +28,7 @@
 
 - **类型**:第三方源码(合作方共享仓库,Mariam Kiran 建立;以 git submodule 接入)
 - **仓库地址(或来源)**:`git@github.com:SelfDrivingNetworkLab/SciNetGenesis.git`
-- **固定 commit(或 revision)**:`2252b7887ff184343d035b257d908e06e2e16b50`(由 submodule gitlink 钉死;升级时在 submodule 内 checkout 新 commit 并提交 gitlink,同步更新此处)
+- **固定 commit(或 revision)**:`1f4ef5230c367459e99b599bde841d7d8cffc08d`(由 submodule gitlink 钉死;升级时在 submodule 内 checkout 新 commit 并提交 gitlink,同步更新此处)
 - **安装位置**:`external/SciNetGenesis/`(submodule;`external/*` 被 .gitignore 忽略,故用 `git submodule add -f` 加入,gitlink 与 `.gitmodules` 进 git)
 - **安装命令**:
   ```bash
