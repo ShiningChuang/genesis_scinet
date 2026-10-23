@@ -30,7 +30,7 @@
 | 4 | 图 A quote 分支:validate_bundle → refresh_if_stale → find_placements → estimate_finish → respond;复现 slide 7 的 a1/a2/a3。放置搜索三条规则(earliest_start / max_rate / min_rate);RateModel 接口(第一版 Ideal);共用 context;config 加 `rate_step_gbps` | `graphs/protocol.py`、`placement.py`、`estimate.py`、`context.py`、`tests/test_step4_quote_graph.py` | 是 | 10/20 前 | ✅ 2026-10-20 |
 | 5a | 图 A reserve/commit:route_verb 入口;validate_op → recheck → place_on_circuit → compile_intent → ledger_pending → sense_call → confirm/rollback | 同上 | 是 | 10/20 前 | ⏳ 下一步 |
 | 5b | modify/release(含 SENSE modify)、TTL 到期回收、重复请求幂等 | 同上 | 是 | 可延后 | |
-| 6 | 端到端 demo:mock scheduling agent 驱动 quote → 选 offer → reserve → commit,两个 workflow 争用,打印 ledger 表(走 `run_experiment.py`) | `configs/` + `src/experiments/{tag}/` | 是 | 10/20 展示 | |
+| 6 | 端到端 demo:mock scheduling agent 驱动 quote → 选 offer → reserve → commit,两个 workflow 争用,打印 ledger 表(走 `run_experiment.py`)。输入用 1000genome trace(`external/SciNetGenesis/workflows/example_workflows/1000genome-chameleon-2ch-100k-001.json`,WfFormat 1.6:52 task、64 文件、约 2.4 GB),由一层转换生成 `TransferRequest` | `configs/` + `src/experiments/{tag}/`(含 trace → TransferRequest 转换) | 是 | 10/20 展示 | |
 | 7 | 图 B Runtime:区分故障/拥塞/渐慢 → 逐跳扫描 → triage → 本地修复(复用第 5 步指令)→ repaired / at_risk | `graphs/runtime.py` | 是 | 之后 | |
 | 8 | 多路径增容:找额外路径、拆分速率、增补方案;transport 侧留接口 | `multipath.py` | 是 | 之后 | |
 | 9 | 图 C Learning:join_records → attribute_cause → calibrate(带状态标签)→ plan_adjustments → apply | `graphs/learning.py` | 是 | 之后 | |
@@ -41,6 +41,8 @@
 
 - slide 7 的 a1 算术疑似笔误:50 TB 以 40 Gbps 自 09:00 起传需 10000 s,应在 11:47 完成,slide 写 13:47(a2 = 13:07、a3 = 14:34 均吻合)。第 4 步已按算术复现(11:46:40),待与 slides 作者确认。
 - 估计完成时间目前用 IdealRateModel(实际速率 = 预留速率)。第 9 步换成校准模型后,若实际慢于预留,p95 会超出预留时段,placement 届时要按 p95 速率定预留时长。
+- 跨路径去重(`find_placements` 里的 `dedupe`)以 `(start, gbps)` 为 key、保留短路径,前提是完成时间只由 (start, gbps) 决定(IdealRateModel)。第 9 步若 RateModel 按路径给出不同 p50/p95,需把去重挪到 `estimate_finish` 之后,key 改为 scheduling agent 实际看到的 `(start, gbps, p50, p95)`,否则可能删掉 p95 更好的方案。另:key 不含 `blocked_by`,同 key 时保留短路径的 `blocked_by`(slide 7 中 MAIN 为 foreign_traffic、ALT 为 None)。
+- 被跨路径去重的方案可作 reserve 时的备选路径:主路径在 quote 之后被占满时,换路兑现同一个 offer,对 scheduling agent 透明。需要 `offer_book` 改为 offer_id → 方案列表;在 5a 设计 `recheck` 时决定是否采用。
 - 账本的 origin 还不会随时间推进(slide 23 的 advance the frontier);目前靠 horizon 足够长撑着,第 6 步 demo 若跑过一天需要补上。
 - `offer_book` 只增不删:过期 quote 的 offer 何时清理,放到 5b 和 TTL 一起处理。
 - ~~observed 口径~~ 已在 3a 定为接口契约:observed = 不算我们自己预订时的可用容量(`schemas.LinkSample`)。接真实 SENSE / telemetry 时,由其 adapter 负责换算(例如 SENSE `maxReservableGbps` 若已扣掉我们的预留,需加回)。
@@ -48,4 +50,5 @@
 - 一个 ServiceIntent 只有一个带宽值;多段速率的 commitment 怎么落到 intent/circuit 上(拆成多个 intent、取最大值,或复用 warm circuit),在 5a 的 place_on_circuit / compile_intent 决定。
 - mock SENSE 的 VLAN 池是全局一个,真实情况是每个端点各有可用 VLAN,两端需同时空闲。
 - 路径枚举目前穷举所有无环路径,只适合 demo 规模;拓扑变大后换 Yen k 最短路径。
+- 第 6 步 1000genome trace → `TransferRequest` 的转换规则待定:trace 是 Pegasus 在单机(pegasus-5)上跑的,没有站点信息,需自行决定 ① task / 文件放到哪个站点(哪些依赖边变成跨站点传输,src/dst 对应拓扑哪个节点);② 时间窗口如何由 task runtime 与 DAG 依赖推出;③ 数据量是否按比例放大(原始约 2.4 GB,在 100 Gbps 链路上不到 1 秒,争用不明显);④ "两个 workflow 争用"是两份 1000genome 还是 1000genome + helloworld-forkjoin。
 - 第 6 步 demo 走入口时需要一个实验 tag,届时 `docs/current_experiment_plan.md` 需从 Exp2 切换(换实验由用户决定)。
