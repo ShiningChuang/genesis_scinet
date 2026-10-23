@@ -36,3 +36,19 @@
   ```
 - **构建前置**:需对该 GitHub 仓库有访问权限(SSH key);仓库可能改为 private
 - **是否有本地改动**:无
+
+---
+
+## kklab_scinet_agents(与 telemetry agent 同事的共享仓库)
+
+- **类型**:协作源码仓库(本人建立,私有;以 git submodule 接入)
+- **仓库地址(或来源)**:`git@github.com:ShiningChuang/kklab_scinet_agents.git`
+- **固定 commit(或 revision)**:以 submodule gitlink 为准,此处不写 hash。这是双方持续提交的协作仓库,指针随 `tools/kklab.sh sync` / `finish` 频繁更新;本仓库的实验代码不依赖它(`network_agent` 的源头是 `src/lib/network_agent`)
+- **安装位置**:`external/kklab_scinet_agents/`(submodule;`external/*` 被 .gitignore 忽略,故用 `git submodule add -f` 加入,gitlink 与 `.gitmodules` 进 git)
+- **安装命令**:
+  ```bash
+  git submodule update --init external/kklab_scinet_agents
+  bash tools/kklab.sh begin        # 切到 main(初始化后处于 detached HEAD)
+  ```
+- **构建前置**:需对该 GitHub 仓库有访问权限(SSH key)
+- **是否有本地改动**:不适用(修改直接提交并推送到该仓库,规则见 `tools/manage_kklab_scinet_agents.md`)
