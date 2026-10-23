@@ -4,11 +4,11 @@
 在本仓库里以 submodule 接入，位置是 `external/kklab_scinet_agents`。固定操作都写成了 [kklab.sh](kklab.sh)，日常只用下面五条命令。
 
 ```bash
-bash tools/kklab.sh setup                 # 一次性：加入 submodule
-bash tools/kklab.sh sync                  # network agent 有新提交后：同步到共享仓库
-bash tools/kklab.sh begin                 # 改共享文件前
-bash tools/kklab.sh finish "<提交说明>"     # 改共享文件后
-bash tools/kklab.sh status                # 随时查看状态
+bash tools/manage_kklab_scinet_agents/kklab.sh setup                 # 一次性：加入 submodule
+bash tools/manage_kklab_scinet_agents/kklab.sh sync                  # network agent 有新提交后：同步到共享仓库
+bash tools/manage_kklab_scinet_agents/kklab.sh begin                 # 改共享文件前
+bash tools/manage_kklab_scinet_agents/kklab.sh finish "<提交说明>"     # 改共享文件后
+bash tools/manage_kklab_scinet_agents/kklab.sh status                # 随时查看状态
 ```
 
 ## 1. 三处代码的关系
@@ -40,7 +40,7 @@ genesis_scinet（本仓库，私有，不分享）
 
 ```bash
 git commit ...                    # 先在 src/lib/network_agent 里提交
-bash tools/kklab.sh sync
+bash tools/manage_kklab_scinet_agents/kklab.sh sync
 git push                          # 推本仓库（sync 只在本地提交了 gitlink）
 ```
 
@@ -53,9 +53,9 @@ git push                          # 推本仓库（sync 只在本地提交了 gi
 ### 修改共享文件（resources/、README 等）
 
 ```bash
-bash tools/kklab.sh begin
+bash tools/manage_kklab_scinet_agents/kklab.sh begin
 # 编辑 external/kklab_scinet_agents/resources/... 等文件
-bash tools/kklab.sh finish "resources: 加入拓扑示意图"
+bash tools/manage_kklab_scinet_agents/kklab.sh finish "resources: 加入拓扑示意图"
 git push                          # 推本仓库
 ```
 
@@ -65,7 +65,7 @@ git push                          # 推本仓库
 
 ```bash
 git submodule update --init external/kklab_scinet_agents
-bash tools/kklab.sh begin         # 切到 main（submodule 初始化后处于 detached HEAD）
+bash tools/manage_kklab_scinet_agents/kklab.sh begin         # 切到 main（submodule 初始化后处于 detached HEAD）
 ```
 
 ## 4. 注意事项
@@ -102,7 +102,7 @@ bash tools/kklab.sh begin         # 切到 main（submodule 初始化后处于 d
 git -C external/kklab_scinet_agents reflog -10          # 找到那次提交的 hash
 git -C external/kklab_scinet_agents checkout main
 git -C external/kklab_scinet_agents cherry-pick <hash>
-bash tools/kklab.sh finish "<提交说明>"
+bash tools/manage_kklab_scinet_agents/kklab.sh finish "<提交说明>"
 ```
 
 ### 有人直接改了共享仓库里的 `network_agent/`
@@ -128,7 +128,7 @@ rm -rf .git/modules/external/kklab_scinet_agents
 
 | 文件 | 作用 |
 |---|---|
-| [tools/kklab.sh](kklab.sh) | 全部固定操作 |
-| [pytest.ini](../pytest.ini) | 防止收集到副本的测试 |
-| [env/external_deps.md](../env/external_deps.md) | submodule 登记 |
+| [tools/manage_kklab_scinet_agents/kklab.sh](kklab.sh) | 全部固定操作 |
+| [pytest.ini](../../pytest.ini) | 防止收集到副本的测试 |
+| [env/external_deps.md](../../env/external_deps.md) | submodule 登记 |
 | `external/kklab_scinet_agents/README.md` | 共享仓库的归属规则与接口说明（给同事看） |

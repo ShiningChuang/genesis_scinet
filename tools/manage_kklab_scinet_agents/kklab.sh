@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # 管理共享仓库 kklab_scinet_agents(本仓库中的 submodule:external/kklab_scinet_agents)。
-# 规则与注意事项见 tools/manage_kklab_scinet_agents.md。
+# 规则与注意事项见 tools/manage_kklab_scinet_agents/manage_kklab_scinet_agents.md。
 #
 # 用法:
-#   bash tools/kklab.sh setup                 一次性:加入 submodule、切到 main、提交 gitlink
-#   bash tools/kklab.sh sync                  把 src/lib/network_agent 单向同步到共享仓库的 network_agent/
-#   bash tools/kklab.sh begin                 修改共享文件前:submodule 切到 main 并拉到最新
-#   bash tools/kklab.sh finish "<提交说明>"     修改共享文件后:提交并推送 submodule,再提交本仓库的 gitlink
-#   bash tools/kklab.sh status                查看 submodule 分支、未推送提交、network_agent 是否已同步
+#   bash tools/manage_kklab_scinet_agents/kklab.sh setup                 一次性:加入 submodule、切到 main、提交 gitlink
+#   bash tools/manage_kklab_scinet_agents/kklab.sh sync                  把 src/lib/network_agent 单向同步到共享仓库的 network_agent/
+#   bash tools/manage_kklab_scinet_agents/kklab.sh begin                 修改共享文件前:submodule 切到 main 并拉到最新
+#   bash tools/manage_kklab_scinet_agents/kklab.sh finish "<提交说明>"     修改共享文件后:提交并推送 submodule,再提交本仓库的 gitlink
+#   bash tools/manage_kklab_scinet_agents/kklab.sh status                查看 submodule 分支、未推送提交、network_agent 是否已同步
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 REMOTE="${KKLAB_REMOTE:-git@github.com:ShiningChuang/kklab_scinet_agents.git}"
@@ -23,7 +23,7 @@ OLD_CLONE="$REPO_ROOT/../kklab_scinet_agents"  # 改用 submodule 之前的独�
 die() { echo "!! $*" >&2; exit 1; }
 
 require_sub() {
-    [ -e "$SUB/.git" ] || die "submodule 未初始化:首次运行 bash tools/kklab.sh setup;新 clone 后运行 git submodule update --init $SUB"
+    [ -e "$SUB/.git" ] || die "submodule 未初始化:首次运行 bash tools/manage_kklab_scinet_agents/kklab.sh setup;新 clone 后运行 git submodule update --init $SUB"
 }
 
 sub_on_main() {  # submodule 默认处于 detached HEAD,修改或合并前必须切回 main
@@ -100,13 +100,13 @@ cmd_begin() {
     [ -z "$(git -C "$SUB" status --porcelain)" ] || die "$SUB 已有未提交的改动;改完了就运行 finish"
     sub_on_main
     echo "submodule 已在 main:$(git -C "$SUB" log --oneline -1)"
-    echo "可以修改 $SUB 下的 resources/、README 等;不要改 $TARGET/。改完运行:bash tools/kklab.sh finish \"<提交说明>\""
+    echo "可以修改 $SUB 下的 resources/、README 等;不要改 $TARGET/。改完运行:bash tools/manage_kklab_scinet_agents/kklab.sh finish \"<提交说明>\""
 }
 
 cmd_finish() {
     require_sub
     local msg="${1:-}"
-    [ -n "$msg" ] || die '用法:bash tools/kklab.sh finish "<提交说明>"'
+    [ -n "$msg" ] || die '用法:bash tools/manage_kklab_scinet_agents/kklab.sh finish "<提交说明>"'
     [ "$(git -C "$SUB" rev-parse --abbrev-ref HEAD)" = main ] || \
         die "submodule 不在 main(detached HEAD),先运行 begin。若已在 detached HEAD 上提交过,见文档「找回 detached HEAD 上的提交」"
     git -C "$SUB" fetch -q origin
