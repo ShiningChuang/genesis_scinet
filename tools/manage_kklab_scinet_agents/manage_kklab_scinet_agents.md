@@ -1,17 +1,19 @@
 # 管理共享仓库 kklab_scinet_agents
 
 与 telemetry agent 同事共享代码和图表的仓库：<https://github.com/ShiningChuang/kklab_scinet_agents>（私有，同事为 collaborator）。
-在本仓库里以 submodule 接入，位置是 `external/kklab_scinet_agents`。固定操作都写成了 [kklab.sh](kklab.sh)，日常只用下面五条命令。
+在本仓库里以 submodule 接入，位置是 `external/kklab_scinet_agents`。固定操作都写成了 [kklab.sh](kklab.sh)，公共逻辑在 [tools/common/repo_sync.sh](../common/repo_sync.sh)（和推项目仓库 SciNetGenesis 的 [scinet.sh](../manage_scinet_repo/scinet.sh) 共用）。
 
 ```bash
 bash tools/manage_kklab_scinet_agents/kklab.sh setup                 # 一次性：加入 submodule
+bash tools/manage_kklab_scinet_agents/kklab.sh check                 # 只审查，不碰任何仓库
+bash tools/manage_kklab_scinet_agents/kklab.sh sync --dry-run        # 预览会推什么，然后还原，不提交不推送
 bash tools/manage_kklab_scinet_agents/kklab.sh sync [--force]        # network agent 有新提交后：同步到共享仓库
 bash tools/manage_kklab_scinet_agents/kklab.sh begin                 # 改共享文件前
 bash tools/manage_kklab_scinet_agents/kklab.sh finish "<English message>"   # 改共享文件后
 bash tools/manage_kklab_scinet_agents/kklab.sh status                # 随时查看状态
 ```
 
-> **规则：推到 kklab 的提交说明和代码注释都不能有中文。** 包括中文标点（，。（）等）。`sync` 和 `finish` 都会检查，违反就拒绝推送，详见 §4 第 1 条。
+> **规则：推到 kklab 的提交说明和代码注释里不能有中文，也不能有个人信息和私人仓库信息。** `sync` 和 `finish` 都会审查，违反就拒绝推送，详见 §4 第 1 条。
 
 ## 1. 三处代码的关系
 
@@ -79,12 +81,14 @@ bash tools/manage_kklab_scinet_agents/kklab.sh begin         # 切到 main（sub
 
 ## 4. 注意事项
 
-1. **推到 kklab 的提交说明和代码注释不能有中文。**
-   - 范围：**提交说明**（`finish` 的参数；`sync` 的提交说明由脚本生成，固定为英文）；**代码文件**里的注释、docstring 和字符串（`.py`、`.sh`、`.yaml` 等，凡不是 `.md` 的文件都检查）。
-   - 不检查的：`.md` 文档的正文（比如 `resources/` 下的笔记），它们不算注释。要不要也写成英文，按需要自己决定。
-   - 中文标点（`，。（）：；` 等全角字符）也算中文，检查时会被拦下。
+1. **推送前的两项审查：不能有中文，不能有个人信息和私人仓库信息。**
+   - **[中文]**：中文字符和中文标点（`，。（）：；` 等全角字符）都不行。
+   - **[私人信息]**：规则见 [tools/common/private_patterns.txt](../common/private_patterns.txt)，包括私人仓库的路径（`resources/`、`runs/`、`docs/`、`CLAUDE.md`、`PLAN.md`、`src.lib.` …）、私人仓库名、本机路径、账号、邮箱、人名、会议（`meeting`、`10/15 design` 这类写法）、内部实验编号。有新的要拦就加一行正则，误报就把规则改窄；kklab 和 SciNetGenesis 共用这一份。
+   - 审查范围：**提交说明**（`finish` 的参数，以及尚未推送的提交；`sync` 的提交说明由脚本生成，不审查）；**代码文件**（`.md` 以外的所有文件）里的注释、docstring 和字符串。
+   - 不审查的：`.md` 文档的正文（比如共享仓库 README 里的归属表写了人名，这是有意的）。
+   - 什么时候审查：`sync` 审查 HEAD 中 `src/lib/network_agent` 下的代码文件；`finish` 审查暂存区里新增的代码行；`check` 随时可以单独跑。命中会打印文件和行号。
    - 本仓库（genesis_scinet）不受这条限制：这边的提交说明、gitlink 提交、脚本注释照常可以用中文。
-   - 检查在本地完成（`sync` 检查 `src/lib/network_agent` 在 HEAD 里的内容，`finish` 检查暂存区里新增的行），所以**只拦得住通过 `kklab.sh` 推送的内容**。同事那边需要自觉遵守，这条已写进共享仓库 README。
+   - 审查在本地完成，所以**只拦得住通过脚本推送的内容**。同事那边需要自觉遵守，"English only" 已写进共享仓库 README。
 
 2. **submodule 默认处于 detached HEAD。** `git submodule update` 之后，submodule 停在某个 commit 上，不在任何分支。这时直接 commit，提交不属于任何分支，很容易丢。所以改之前一律先运行 `begin`（`sync` 内部也会自动切到 `main`）。
 
@@ -142,7 +146,9 @@ rm -rf .git/modules/external/kklab_scinet_agents
 
 | 文件 | 作用 |
 |---|---|
-| [tools/manage_kklab_scinet_agents/kklab.sh](kklab.sh) | 全部固定操作 |
+| [tools/manage_kklab_scinet_agents/kklab.sh](kklab.sh) | kklab 的参数（仓库地址、目标目录、提交说明） |
+| [tools/common/repo_sync.sh](../common/repo_sync.sh) | 和 SciNetGenesis 共用的同步、审查、提交逻辑 |
+| [tools/common/private_patterns.txt](../common/private_patterns.txt) | 私人信息审查规则 |
 | [pytest.ini](../../pytest.ini) | 防止收集到副本的测试 |
 | [env/external_deps.md](../../env/external_deps.md) | submodule 登记 |
 | `external/kklab_scinet_agents/README.md` | 共享仓库的归属规则与接口说明（给同事看） |

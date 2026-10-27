@@ -28,14 +28,15 @@
 
 - **类型**:第三方源码(合作方共享仓库,Mariam Kiran 建立;以 git submodule 接入)
 - **仓库地址(或来源)**:`git@github.com:SelfDrivingNetworkLab/SciNetGenesis.git`
-- **固定 commit(或 revision)**:`1f4ef5230c367459e99b599bde841d7d8cffc08d`(由 submodule gitlink 钉死;升级时在 submodule 内 checkout 新 commit 并提交 gitlink,同步更新此处)
+- **固定 commit(或 revision)**:以 submodule gitlink 为准,此处不写 hash。我们会通过 `tools/manage_scinet_repo/scinet.sh` 往其中的 `ucr/` 推送,指针随 `sync` / `finish` 更新;本仓库的实验代码不依赖它
 - **安装位置**:`external/SciNetGenesis/`(submodule;`external/*` 被 .gitignore 忽略,故用 `git submodule add -f` 加入,gitlink 与 `.gitmodules` 进 git)
 - **安装命令**:
   ```bash
   git submodule update --init external/SciNetGenesis
+  bash tools/manage_scinet_repo/scinet.sh begin   # 切到 main(初始化后处于 detached HEAD)
   ```
 - **构建前置**:需对该 GitHub 仓库有访问权限(SSH key);仓库可能改为 private
-- **是否有本地改动**:无
+- **是否有本地改动**:不适用(我们只改 `ucr/`,改动直接提交并推送到该仓库,规则见 `tools/manage_scinet_repo/manage_scinet_repo.md`)
 
 ---
 
