@@ -81,7 +81,7 @@ bash tools/manage_kklab_scinet_agents/kklab.sh begin         # 切到 main（sub
 
 1. **推到 kklab 的提交说明和代码注释不能有中文。**
    - 范围：**提交说明**（`finish` 的参数；`sync` 的提交说明由脚本生成，固定为英文）；**代码文件**里的注释、docstring 和字符串（`.py`、`.sh`、`.yaml` 等，凡不是 `.md` 的文件都检查）。
-   - 不检查的：`.md` 文档的正文（比如 `network_agent/PLAN.md`、`resources/` 下的笔记），它们不算注释。要不要也写成英文，按需要自己决定。
+   - 不检查的：`.md` 文档的正文（比如 `resources/` 下的笔记），它们不算注释。要不要也写成英文，按需要自己决定。
    - 中文标点（`，。（）：；` 等全角字符）也算中文，检查时会被拦下。
    - 本仓库（genesis_scinet）不受这条限制：这边的提交说明、gitlink 提交、脚本注释照常可以用中文。
    - 检查在本地完成（`sync` 检查 `src/lib/network_agent` 在 HEAD 里的内容，`finish` 检查暂存区里新增的行），所以**只拦得住通过 `kklab.sh` 推送的内容**。同事那边需要自觉遵守，这条已写进共享仓库 README。
@@ -100,7 +100,7 @@ bash tools/manage_kklab_scinet_agents/kklab.sh begin         # 切到 main（sub
 
 7. **共享仓库里的稳定接口。** 共享仓库 README 写明 telemetry agent 可以依赖四个接口：`schemas.LinkSample`、`telemetry.TelemetrySource`、`topology.Topology` / `TopologySpec`、`sim.MockNetwork`。**改这几个之前先通知同事**；其余模块（ledger、placement、graphs …）属于内部实现，可以随时改。
 
-8. **同步的是整个 `src/lib/network_agent` 目录**，包括 `PLAN.md`（进度表、待决项，其中提到 slides、会议记录路径和人名）。不想分享的内容不要放进这个目录。
+8. **同步的是整个 `src/lib/network_agent` 目录**，凡是放在里面的文件都会进共享仓库。network agent 的实现计划（进度表、待决项，含私人仓库路径和会议信息）因此放在 `resources/other/network_agent/PLAN.md`，不在这个目录里。不想分享的内容都不要放进 `src/lib/network_agent`；注释里也不要写本仓库的私人路径（`resources/`、`runs/`、`docs/` 等）和会议信息。
 
 9. **大文件不进共享仓库。** 共享仓库的 `.gitignore` 已经忽略 `*.pptx`、`*.pdf`；其他大文件（数据集等）也不要提交，在共享仓库的 `resources/README.md` 里登记来源。
 

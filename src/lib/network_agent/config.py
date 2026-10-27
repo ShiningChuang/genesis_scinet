@@ -1,7 +1,7 @@
 """Network Agent parameters.
 
 Every parameter that affects results is declared (with its type) here, and its value may only
-come from a config file (CLAUDE.md §6). Fields therefore have no defaults: a missing or misspelled
+come from a config file. Fields therefore have no defaults: a missing or misspelled
 key fails at load time instead of silently falling back to some default number.
 Later steps add new parameters here as they need them.
 """

@@ -1,7 +1,7 @@
 """Step 4: the quote branch of graph A. The core case reproduces slide 7:
 
     T1 = 50 TB, window 09:00–15:00; ledger: only 40 Gbps left before 12:00, fully free 100 Gbps after.
-    a1 09:00 @ 40 Gbps → 11:46:40   (slide says 13:47; the arithmetic gives 11:47, see PLAN open items)
+    a1 09:00 @ 40 Gbps → 11:46:40   (slide says 13:47; the arithmetic gives 11:47)
     a2 12:00 @ 100 Gbps → 13:06:40  (slide 13:07)
     a3 09:00 @ 20 Gbps → 14:33:20   (slide 14:34)
 """
@@ -171,8 +171,7 @@ def test_graph_shape(graph):
 # ── demo: print the full scenario and quote result ────────────────────────
 #
 # How to run (from the repository root), with one scenario as the argument:
-#   genesis_scinet:        .venv/bin/python -m src.lib.network_agent.tests.test_step4_quote_graph test1
-#   kklab_scinet_agents:   python -m network_agent.tests.test_step4_quote_graph test1
+#   python -m <package path>.tests.test_step4_quote_graph test1     (e.g. network_agent.tests...)
 # scenarios: test1 / test2 / test3
 
 SCENARIOS = {

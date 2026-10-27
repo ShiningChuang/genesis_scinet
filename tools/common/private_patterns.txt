@@ -1,0 +1,42 @@
+# 推到共享仓库的代码文件(md 以外)和提交说明里不允许出现的内容。
+# 每行一个 Perl 正则,不区分大小写;# 开头的行和空行忽略。由 tools/common/repo_sync.sh 读取。
+# 有新的人名、账号、私人路径要拦,就加在这里;误报就把对应规则改窄。
+
+# ── 私人仓库(genesis_scinet)的路径与文件 ──
+\bresources/
+\bruns/
+\bdocs/
+\bweekly_report/
+\bconfigs/
+\bCLAUDE\.md\b
+\bAGENTS\.md\b
+\bEXPERIMENTS\.md\b
+\bcurrent_experiment_plan\b
+\bcurrent_log\b
+\bfindings_\d{8}
+\bknowledge_\d{8}
+\bPLAN\.md\b
+\bsrc\.lib\.
+\bsrc/lib/
+
+# ── 私人仓库名 ──
+\bgenesis_scinet\b
+\bkklab_scinet_agents\b
+
+# ── 本机路径、账号、邮箱 ──
+/Users/
+\blxzhong\b
+\bShiningChuang\b
+[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}
+
+# ── 人名 ──
+\bLinxuan\b
+\bKK\b
+\bSourabha\b
+\bMariam\b
+
+# ── 会议与内部实验编号 ──
+\bmeetings?\b
+\b\d{1,2}/\d{1,2}\s+(meeting|design|revision|discussion)
+\bExp\d+\b
+\b20\d{6}_\d{6}_

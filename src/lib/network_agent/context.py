@@ -2,7 +2,7 @@
 
 A graph's state only records the work of "this one execution". Long-lived objects shared by all
 requests — the ledger, the topology, external interfaces — live in the context instead: the caller
-builds it once and passes it on every invoke (10/14 design: the ledger stays out of state).
+builds it once and passes it on every invoke (by design, the ledger stays out of state).
 """
 
 from dataclasses import dataclass, field

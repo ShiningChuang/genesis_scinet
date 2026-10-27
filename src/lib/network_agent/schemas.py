@@ -217,7 +217,7 @@ class CommitAck(Msg):
 
 
 class ErrorResponse(Msg):
-    """The reply when validation or execution fails (the exit for failed validation, 10/15 revision)."""
+    """The reply when validation or execution fails (the exit for failed validation)."""
 
     request_id: str
     code: Literal["invalid_request", "not_found", "expired", "conflict", "sense_failure"]
@@ -260,8 +260,7 @@ class LinkSample(Msg):
 
 
 # ── network agent ↔ SENSE-O / NDT (slide 8) ───────────────────────────────
-# Fields follow the DNC of SENSE-O Intent API 2.0.4 (Exp2 survey:
-# runs/20260826_181552_probe_sense_intent_harmonize_847b6e8/), with two simplifications:
+# Fields follow the DNC of SENSE-O Intent API 2.0.4, with two simplifications:
 # one connection with exactly two endpoints; bandwidth as int Mbps (SENSE expects a Mbps string,
 # converted by the real adapter).
 

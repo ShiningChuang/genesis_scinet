@@ -1,7 +1,7 @@
 """Telemetry interface: where the network agent pulls link capacity and state from (slide 10).
 
 The network agent depends only on the ``TelemetrySource`` interface; whether a mock, the Telemetry
-Agent (owned by another student) or SENSE / Prometheus sits behind it is transparent to the agent.
+Agent or SENSE / Prometheus sits behind it is transparent to the agent.
 """
 
 from dataclasses import dataclass

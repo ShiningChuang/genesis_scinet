@@ -1,12 +1,11 @@
 """SciNet Network Agent.
 
-Design sources: resources/slides/Agent Orchestration.pptx (slides 6–8, 12, 19–24),
-resources/notes/20261014_networkagent.md (the three graphs),
-resources/meetings/20261015_network_agent_prototype.md (revisions with KK).
+Design: the SciNet "Agent Orchestration" slides (slides 6–8, 12, 19–24) and the three-graph
+design (protocol / runtime / learning).
 
 The three execution graphs share one set of business modules. Graph nodes only orchestrate;
-the logic lives in ordinary modules so that other graphs or other agents can reuse it
-(10/15 meeting). Planned modules:
+the logic lives in ordinary modules so that other graphs or other agents can reuse it.
+Planned modules:
 
     config.py      parameters (all from config files; no magic numbers in code)
     schemas.py     inter-agent messages (TransferRequest, QuoteRequest/Response, Offer …)
@@ -21,7 +20,7 @@ the logic lives in ordinary modules so that other graphs or other agents can reu
     graphs/        protocol (graph A), runtime (graph B), learning (graph C)
 
 Conventions:
-- ``reserve`` stands for the slides' ``hold`` (KK's suggestion, 10/15).
+- ``reserve`` stands for the slides' ``hold``.
 - Units: bandwidth in Gbps (float), data size in bytes (int), times are timezone-aware UTC datetimes.
 - The ledger is kept per individual link rather than per (src, dst) pair as in slide 23: this is
   what lets us locate the congested hop and support multi-path capacity increases.
