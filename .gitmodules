@@ -1,6 +1,7 @@
 [submodule "external/SciNetGenesis"]
 	path = external/SciNetGenesis
 	url = git@github.com:SelfDrivingNetworkLab/SciNetGenesis.git
+	branch = main
 [submodule "external/kklab_scinet_agents"]
 	path = external/kklab_scinet_agents
 	url = git@github.com:ShiningChuang/kklab_scinet_agents.git
