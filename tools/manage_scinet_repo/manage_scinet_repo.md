@@ -8,7 +8,7 @@ SciNet 项目的共享仓库：<https://github.com/SelfDrivingNetworkLab/SciNetG
 bash tools/manage_scinet_repo/scinet.sh setup                    # 一次性：submodule 跟踪 main
 bash tools/manage_scinet_repo/scinet.sh check                    # 只审查，不碰任何仓库
 bash tools/manage_scinet_repo/scinet.sh sync --dry-run           # 预览会推什么，然后还原，不提交不推送
-bash tools/manage_scinet_repo/scinet.sh sync [--force]           # 同步 src/lib/network_agent → ucr/network_agent/
+bash tools/manage_scinet_repo/scinet.sh sync [--force] "<English message>"   # 同步 src/lib/network_agent → ucr/network_agent/
 bash tools/manage_scinet_repo/scinet.sh begin                    # 改 ucr/ 下其他文件前
 bash tools/manage_scinet_repo/scinet.sh finish "<English message>"   # 改完后
 bash tools/manage_scinet_repo/scinet.sh status                   # 随时查看状态
@@ -23,8 +23,8 @@ bash tools/manage_scinet_repo/scinet.sh status                   # 随时查看�
 | 性质 | 你和 Sourabha 的私有仓库 | 项目共享仓库，多方共用 |
 | network agent 位置 | `network_agent/` | `ucr/network_agent/` |
 | `finish` 能改的范围 | `network_agent/` 以外都可以 | **只能改 `ucr/` 下的文件**（`network_agent/` 除外），别人的目录（`harness/`、`scinetagentframework/`、`workflows/` …）一律不碰 |
-| sync 的提交说明 | `Sync network_agent from genesis_scinet@<hash>` | `Update ucr/network_agent (rev <hash>)`，**不写私人仓库名** |
-| `<hash>` | 本仓库的 commit | 同左；只对我们有意义，外人看不出来源 |
+| sync 的提交说明 | 自动生成：`Sync network_agent from genesis_scinet@<hash>`，`sync` 不接受手写说明 | **必须手写**：`sync "<message>"` → `ucr/network_agent: <message>`；不写私人仓库名，也不写本地 hash |
+| 与本地 commit 的对应 | 写在提交说明里 | 只记在本仓库：每次 sync 在本仓库生成的指针提交 `external/SciNetGenesis:同步 src/lib/network_agent(<本地 hash>):<message>`，既写着本地 hash，又指向 SciNetGenesis 的新 commit。查对应关系：`git log -p -- external/SciNetGenesis` |
 
 其余规则完全相同，详见 [manage_kklab_scinet_agents.md](../manage_kklab_scinet_agents/manage_kklab_scinet_agents.md) §4 的注意事项：detached HEAD、每次修改要提交两次、本地两份 `network_agent`、测试要用包内相对导入、只同步已提交的内容。
 
@@ -47,11 +47,19 @@ bash tools/manage_scinet_repo/scinet.sh status                   # 随时查看�
 ### 同步 network agent
 
 ```bash
-git commit ...                                         # 先在 src/lib/network_agent 里提交
-bash tools/manage_scinet_repo/scinet.sh sync --dry-run # 预览：会改哪些文件、提交说明是什么
-bash tools/manage_scinet_repo/scinet.sh sync           # 确认后真正同步
-git push                                               # 推本仓库（sync 只在本地提交了 gitlink）
+git commit ...                                                         # 先在 src/lib/network_agent 里提交
+bash tools/manage_scinet_repo/scinet.sh sync --dry-run                 # 预览：会改哪些文件
+bash tools/manage_scinet_repo/scinet.sh sync "add reserve/commit branch"   # 确认后真正同步
+git push                                                               # 推本仓库（不急，见下）
 ```
+
+**提交说明怎么写：** 英文，动词开头，写这次改了什么，脚本会自动加上 `ucr/network_agent: ` 前缀（自己写了前缀也不会重复）。例如：
+- 第一次：`sync "add SciNet network agent (protocol graph quote branch, capacity ledger, SENSE and telemetry interfaces)"`
+- 以后：`sync "add reserve/commit branch"`、`sync "fix slot rounding in ledger.apply"`
+
+说明同样要过审查：不能有中文、人名、私人仓库名等。不写说明直接 `sync` 会被拒绝（`--dry-run` 可以不写）。
+
+**最后的 `git push` 推的是本仓库，不是 SciNetGenesis。** `sync` 结束时 SciNetGenesis 已经推送完毕；本仓库只是在本地多了一个记录新指针的提交。不推也不影响 SciNetGenesis，只是 GitHub 上的 genesis_scinet 还记着旧指针，下次有别的改动时一起推即可。
 
 ### 修改 `ucr/` 下的其他文件（比如 `ucr/README.md`）
 

@@ -7,7 +7,8 @@
 #   SUB         submodule 位置(相对 REPO_ROOT)
 #   PREFIX      本仓库中的源目录
 #   TARGET      目标仓库中的目录(只由 sync 写入)
-#   SYNC_MSG    sync 在目标仓库的提交说明(printf 模板,%s 处填本仓库源 commit 的短 hash)
+#   SYNC_MSG    二选一。自动说明:printf 模板,%s 处填本仓库源 commit 的短 hash;sync 不接受手写说明
+#   SYNC_MSG_PREFIX           手写说明:sync 必须带一句说明,提交说明 = 前缀 + 这句话(SYNC_MSG 留空)
 #   EDIT_SCOPE  finish 允许修改的路径前缀(空 = 除 TARGET 外都可以)
 #   EDIT_HINT   begin 时提示可以改哪些文件
 #
@@ -110,10 +111,33 @@ cmd_check() {  # 只做审查,不碰任何仓库
     echo "通过"
 }
 
+sync_message() {  # 由 $1(用户写的说明,可空)和 $2(源 commit 短 hash)得到目标仓库的提交说明
+    if [ -n "${SYNC_MSG_PREFIX:-}" ]; then
+        printf '%s%s' "$SYNC_MSG_PREFIX" "${1#"$SYNC_MSG_PREFIX"}"   # 用户自己写了前缀就不重复加
+    else
+        printf "$SYNC_MSG" "$2"
+    fi
+}
+
 cmd_sync() {
     require_sub
-    local opt="${1:-}"
-    [ -z "$opt" ] || [ "$opt" = --force ] || [ "$opt" = --dry-run ] || die "未知参数 $opt(可用 --force / --dry-run)"
+    local opt="" msg="" a
+    for a in "$@"; do
+        case "$a" in
+            --force|--dry-run) opt="$a" ;;
+            --*) die "未知参数 $a(可用 --force / --dry-run)" ;;
+            *) msg="$a" ;;
+        esac
+    done
+    if [ -n "${SYNC_MSG_PREFIX:-}" ]; then
+        [ -n "$msg" ] || [ "$opt" = --dry-run ] || \
+            die "$NAME 的 sync 必须写一句说明(英文,写这次改了什么),例如:bash $SCRIPT sync \"add reserve/commit branch\";提交说明会是 \"${SYNC_MSG_PREFIX}add reserve/commit branch\""
+        if [ -n "$msg" ] && printf '%s\n' "$msg" | scan_text "commit message"; then
+            die "提交说明不能有中文、个人信息或私人仓库信息"
+        fi
+    else
+        [ -z "$msg" ] || die "$NAME 的 sync 提交说明自动生成,不接受手写说明"
+    fi
     [ -z "$(git status --porcelain -- "$PREFIX")" ] || die "$PREFIX 有未提交的改动,未提交部分不会被同步。先 commit。"
     [ -z "$(git -C "$SUB" status --porcelain)" ] || die "$SUB 有未提交的改动(可能 begin 之后还没 finish),先处理。"
     if review_head; then
@@ -133,7 +157,11 @@ cmd_sync() {
         echo "==> [dry-run] 将要提交到 $NAME 的改动:"
         git -C "$SUB" add -A "$TARGET"
         git -C "$SUB" diff --cached --stat | tail -20
-        echo "提交说明:$(printf "$SYNC_MSG" "$src_rev")"
+        if [ -n "${SYNC_MSG_PREFIX:-}" ] && [ -z "$msg" ]; then
+            echo "提交说明:${SYNC_MSG_PREFIX}<正式 sync 时写的说明>"
+        else
+            echo "提交说明:$(sync_message "$msg" "$src_rev")"
+        fi
         git -C "$SUB" reset -q -- "$TARGET"
         git -C "$SUB" checkout -q -- . 2>/dev/null || true
         git -C "$SUB" clean -fdq -- "$TARGET"
@@ -146,14 +174,14 @@ cmd_sync() {
         echo "$TARGET/ 无变化"
     else
         git -C "$SUB" add -A "$TARGET"
-        git -C "$SUB" commit -q -m "$(printf "$SYNC_MSG" "$src_rev")"
+        git -C "$SUB" commit -q -m "$(sync_message "$msg" "$src_rev")"
         git -C "$SUB" pull -q --rebase origin main
         git -C "$SUB" push -q origin main
         echo "$NAME 已推送:$(git -C "$SUB" log --oneline -1)"
     fi
 
     echo "==> [4/4] 更新本仓库记录的 submodule 指针"
-    commit_gitlink "$SUB:同步 $PREFIX($src_rev)"
+    commit_gitlink "$SUB:同步 $PREFIX($src_rev)${msg:+:$msg}"
 }
 
 cmd_begin() {
@@ -228,7 +256,7 @@ dispatch() {
     case "${1:-}" in
         setup)  cmd_setup ;;
         check)  cmd_check ;;
-        sync)   shift; cmd_sync "${1:-}" ;;
+        sync)   shift; cmd_sync "$@" ;;
         begin)  cmd_begin ;;
         finish) shift; cmd_finish "${1:-}" ;;
         status) cmd_status ;;
